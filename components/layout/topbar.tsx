@@ -1,9 +1,12 @@
 "use client";
 
-import { Bell, Sun, Moon, Menu, Monitor } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Bell, Sun, Moon, Menu, Monitor, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SearchBar } from "@/components/search/search-bar";
 import { useTheme, type Theme } from "@/providers/theme-provider";
+import { useAuth } from "@/providers/auth-provider";
+import { signOut } from "@/services/auth";
 
 /* ──────────────────────────────────────────────────────────────
    Icon Button — generic rounded icon action
@@ -79,29 +82,55 @@ function ThemeToggle() {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   User Avatar Placeholder
+   User Avatar — wired to live auth session
 ────────────────────────────────────────────────────────────── */
 function UserAvatar() {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+
+  // Use stable placeholder values until the session resolves client-side.
+  // This keeps the first client render identical to the server render
+  // (both produce the same stable output), preventing a hydration mismatch.
+  const email = isLoading ? "" : (user?.email ?? "");
+  const initial = isLoading ? "O" : (email.charAt(0).toUpperCase() || "O");
+
+  async function handleSignOut() {
+    await signOut();
+    router.push("/login");
+    router.refresh();
+  }
+
   return (
-    <button
-      id="user-menu-trigger"
-      aria-label="Open user menu"
-      className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-accent transition-colors"
-    >
-      <div
-        className={cn(
-          "h-7 w-7 rounded-full shrink-0",
-          "bg-gradient-to-br from-[oklch(0.68_0.20_264)] to-[oklch(0.55_0.27_300)]",
-          "flex items-center justify-center",
-        )}
+    <div className="flex items-center gap-1">
+      <button
+        id="user-menu-trigger"
+        aria-label="User info"
+        className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-accent transition-colors"
       >
-        <span className="text-[11px] font-bold text-white select-none">A</span>
-      </div>
-      <div className="hidden xl:flex flex-col items-start leading-none">
-        <span className="text-xs font-semibold text-foreground">Admin User</span>
-        <span className="text-[10px] text-muted-foreground">admin@aura.os</span>
-      </div>
-    </button>
+        <div
+          className={cn(
+            "h-7 w-7 rounded-full shrink-0",
+            "bg-gradient-to-br from-[oklch(0.68_0.20_264)] to-[oklch(0.55_0.27_300)]",
+            "flex items-center justify-center",
+          )}
+        >
+          <span className="text-[11px] font-bold text-white select-none">
+            {initial}
+          </span>
+        </div>
+        <div className="hidden xl:flex flex-col items-start leading-none">
+          <span className="text-xs font-semibold text-foreground">Owner</span>
+          <span className="text-[10px] text-muted-foreground truncate max-w-[140px]">
+            {email}
+          </span>
+        </div>
+      </button>
+
+      {/* Logout button */}
+      <IconButton label="Sign out" onClick={handleSignOut}>
+        <LogOut className="h-4 w-4" />
+      </IconButton>
+    </div>
   );
 }
 

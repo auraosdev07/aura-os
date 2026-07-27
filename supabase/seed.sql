@@ -1,0 +1,8 @@
+-- supabase/seed.sql
+-- Aura OS — Development Seed File
+--
+-- No seed data in MVP.
+-- All data is created by the Owner via the application.
+-- Fake or demo records are explicitly forbidden (MASTER_CONTEXT.md).
+--
+-- This file is intentionally empty.
