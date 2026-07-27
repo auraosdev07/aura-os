@@ -13,6 +13,7 @@ import {
   BookOpen,
   FolderOpen,
   Settings,
+  User,
   type LucideIcon,
 } from "lucide-react";
 
@@ -61,6 +62,7 @@ export const NAVIGATION: NavSection[] = [
   {
     label: "System",
     items: [
+      { href: "/profile", label: "Profile", icon: User },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
   },
