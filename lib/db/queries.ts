@@ -59,7 +59,6 @@ export async function getManagers(
     .from("managers")
     .select("*")
     .eq("owner_id", ownerId)
-    .is("deleted_at", null)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data ?? [];
@@ -74,7 +73,6 @@ export async function getManagerById(
     .from("managers")
     .select("*")
     .eq("id", managerId)
-    .is("deleted_at", null)
     .maybeSingle();
   if (error) throw error;
   return data;
@@ -84,17 +82,84 @@ export async function getManagerById(
 // employees
 // ---------------------------------------------------------------------------
 
+export interface EmployeeFilters {
+  search?: string;
+  department?: string;
+  managerId?: string;
+  status?: string;
+  archived?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
 /** Fetch all active employees for an owner. */
 export async function getEmployees(
   client: SupabaseClient,
   ownerId: string,
+  filters?: EmployeeFilters,
 ): Promise<EmployeeRow[]> {
-  const { data, error } = await client
+  let query = client
     .from("employees")
     .select("*")
     .eq("owner_id", ownerId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
+
+  if (filters?.search) {
+    query = query.ilike("name", `%${filters.search}%`);
+  }
+  if (filters?.department) {
+    query = query.eq("department", filters.department);
+  }
+  if (filters?.managerId) {
+    query = query.eq("manager_id", filters.managerId);
+  }
+  if (filters?.status) {
+    query = query.eq("status", filters.status);
+  }
+  if (filters?.limit) {
+    const limit = filters.limit;
+    const offset = filters.offset || 0;
+    query = query.range(offset, offset + limit - 1);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Fetch all archived employees for an owner. */
+export async function getArchivedEmployees(
+  client: SupabaseClient,
+  ownerId: string,
+  filters?: EmployeeFilters,
+): Promise<EmployeeRow[]> {
+  let query = client
+    .from("employees")
+    .select("*")
+    .eq("owner_id", ownerId)
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false });
+
+  if (filters?.search) {
+    query = query.ilike("name", `%${filters.search}%`);
+  }
+  if (filters?.department) {
+    query = query.eq("department", filters.department);
+  }
+  if (filters?.managerId) {
+    query = query.eq("manager_id", filters.managerId);
+  }
+  if (filters?.status) {
+    query = query.eq("status", filters.status);
+  }
+  if (filters?.limit) {
+    const limit = filters.limit;
+    const offset = filters.offset || 0;
+    query = query.range(offset, offset + limit - 1);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
   return data ?? [];
 }
@@ -108,7 +173,6 @@ export async function getEmployeeById(
     .from("employees")
     .select("*")
     .eq("id", employeeId)
-    .is("deleted_at", null)
     .maybeSingle();
   if (error) throw error;
   return data;
@@ -150,17 +214,76 @@ export async function getEmployeesByStatus(
 // missions
 // ---------------------------------------------------------------------------
 
-/** Fetch all active missions for an owner. */
+export interface MissionFilters {
+  status?: string;
+  priority?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+/** Fetch all active missions for an owner with optional filters. */
 export async function getMissions(
   client: SupabaseClient,
   ownerId: string,
+  filters?: MissionFilters,
 ): Promise<MissionRow[]> {
-  const { data, error } = await client
+  let query = client
     .from("missions")
     .select("*")
     .eq("owner_id", ownerId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
+
+  if (filters?.status) {
+    query = query.eq("status", filters.status);
+  }
+  if (filters?.priority) {
+    query = query.eq("priority", filters.priority);
+  }
+  if (filters?.search) {
+    query = query.ilike("title", `%${filters.search}%`);
+  }
+  if (filters?.limit) {
+    const limit = filters.limit;
+    const offset = filters.offset || 0;
+    query = query.range(offset, offset + limit - 1);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Fetch all archived missions for an owner. */
+export async function getArchivedMissions(
+  client: SupabaseClient,
+  ownerId: string,
+  filters?: MissionFilters,
+): Promise<MissionRow[]> {
+  let query = client
+    .from("missions")
+    .select("*")
+    .eq("owner_id", ownerId)
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false });
+
+  if (filters?.status) {
+    query = query.eq("status", filters.status);
+  }
+  if (filters?.priority) {
+    query = query.eq("priority", filters.priority);
+  }
+  if (filters?.search) {
+    query = query.ilike("title", `%${filters.search}%`);
+  }
+  if (filters?.limit) {
+    const limit = filters.limit;
+    const offset = filters.offset || 0;
+    query = query.range(offset, offset + limit - 1);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
   return data ?? [];
 }
@@ -215,23 +338,116 @@ export async function getMissionAssignments(
   return data ?? [];
 }
 
+/** Fetch all assignments for a list of missions. */
+export async function getMissionAssignmentsByMissionIds(
+  client: SupabaseClient,
+  missionIds: string[],
+): Promise<MissionAssignmentRow[]> {
+  if (missionIds.length === 0) return [];
+  const { data, error } = await client
+    .from("mission_assignments")
+    .select("*")
+    .in("mission_id", missionIds);
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Fetch all assignments for a specific manager. */
+export async function getMissionAssignmentsByManager(
+  client: SupabaseClient,
+  managerId: string,
+): Promise<MissionAssignmentRow[]> {
+  const { data, error } = await client
+    .from("mission_assignments")
+    .select("*")
+    .eq("manager_id", managerId);
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Fetch all assignments for a specific employee. */
+export async function getMissionAssignmentsByEmployee(
+  client: SupabaseClient,
+  employeeId: string,
+): Promise<MissionAssignmentRow[]> {
+  const { data, error } = await client
+    .from("mission_assignments")
+    .select("*")
+    .eq("employee_id", employeeId);
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Fetch all assignments for a list of employees. */
+export async function getMissionAssignmentsByEmployeeIds(
+  client: SupabaseClient,
+  employeeIds: string[],
+): Promise<MissionAssignmentRow[]> {
+  if (employeeIds.length === 0) return [];
+  const { data, error } = await client
+    .from("mission_assignments")
+    .select("*")
+    .in("employee_id", employeeIds);
+  if (error) throw error;
+  return data ?? [];
+}
+
 // ---------------------------------------------------------------------------
 // knowledge_entries
 // ---------------------------------------------------------------------------
+
+export interface KnowledgeFilters {
+  layer?: KnowledgeLayer;
+  missionId?: string;
+  employeeId?: string;
+  search?: string;
+}
 
 /** Fetch all active knowledge entries for an owner. */
 export async function getKnowledgeEntries(
   client: SupabaseClient,
   ownerId: string,
+  filters?: KnowledgeFilters
 ): Promise<KnowledgeEntryRow[]> {
-  const { data, error } = await client
+  let query = client
     .from("knowledge_entries")
     .select("*")
     .eq("owner_id", ownerId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
+
+  if (filters?.layer) {
+    query = query.eq("layer", filters.layer);
+  }
+  if (filters?.missionId) {
+    query = query.eq("mission_id", filters.missionId);
+  }
+  if (filters?.employeeId) {
+    query = query.eq("employee_id", filters.employeeId);
+  }
+  if (filters?.search) {
+    query = query.ilike("title", `%${filters.search}%`);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
   return data ?? [];
+}
+
+/** Fetch a specific knowledge entry by ID. */
+export async function getKnowledgeEntryById(
+  client: SupabaseClient,
+  id: string,
+): Promise<KnowledgeEntryRow | null> {
+  const { data, error } = await client
+    .from("knowledge_entries")
+    .select("*")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .single();
+  
+  if (error && error.code !== "PGRST116") throw error; // PGRST116 = no rows returned
+  return data;
 }
 
 /** Fetch knowledge entries filtered by layer. */
@@ -285,22 +501,69 @@ export async function getKnowledgeEntriesByEmployee(
 // artifacts
 // ---------------------------------------------------------------------------
 
-/** Fetch all active artifacts for an owner. */
+export interface ArtifactFilters {
+  missionId?: string;
+  employeeId?: string;
+  knowledgeId?: string;
+  search?: string;
+}
+
+export interface ArtifactRowWithRelations extends ArtifactRow {
+  mission?: { title: string } | null;
+  employee?: { name: string } | null;
+  knowledge?: { title: string } | null;
+}
+
 export async function getArtifacts(
   client: SupabaseClient,
   ownerId: string,
-): Promise<ArtifactRow[]> {
-  const { data, error } = await client
+  filters?: ArtifactFilters
+): Promise<ArtifactRowWithRelations[]> {
+  let query = client
     .from("artifacts")
-    .select("*")
+    .select("*, mission:missions(title), employee:employees(name), knowledge:knowledge_entries(title)")
     .eq("owner_id", ownerId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
+
+  if (filters?.missionId) {
+    query = query.eq("mission_id", filters.missionId);
+  }
+  if (filters?.employeeId) {
+    query = query.eq("employeeId", filters.employeeId);
+  }
+  if (filters?.knowledgeId) {
+    query = query.eq("knowledge_id", filters.knowledgeId);
+  }
+  if (filters?.search) {
+    query = query.ilike("name", `%${filters.search}%`);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
   return data ?? [];
 }
 
-/** Fetch artifacts for a specific mission. */
+export async function getArtifactById(
+  client: SupabaseClient,
+  id: string,
+  ownerId: string
+): Promise<ArtifactRowWithRelations | null> {
+  const { data, error } = await client
+    .from("artifacts")
+    .select("*, mission:missions(title), employee:employees(name), knowledge:knowledge_entries(title)")
+    .eq("id", id)
+    .eq("owner_id", ownerId)
+    .is("deleted_at", null)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") return null; // not found
+    throw error;
+  }
+  return data;
+}
+
 export async function getArtifactsByMission(
   client: SupabaseClient,
   missionId: string,
@@ -315,35 +578,161 @@ export async function getArtifactsByMission(
   return data ?? [];
 }
 
+
 // ---------------------------------------------------------------------------
-// notifications
+// dashboard (optimized fetches)
 // ---------------------------------------------------------------------------
 
-/** Fetch all notifications for an owner, newest first. */
-export async function getNotifications(
-  client: SupabaseClient,
-  ownerId: string,
-): Promise<NotificationRow[]> {
-  const { data, error } = await client
-    .from("notifications")
-    .select("*")
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getCount(client: SupabaseClient, table: string, ownerId: string, queryBuilder?: (q: any) => any): Promise<number> {
+  let query = client.from(table).select("*", { count: "exact", head: true }).eq("owner_id", ownerId).is("deleted_at", null);
+  if (queryBuilder) query = queryBuilder(query);
+  const { count, error } = await query;
+  if (error) throw error;
+  return count ?? 0;
+}
+
+export async function getManagerCount(client: SupabaseClient, ownerId: string): Promise<number> {
+  return getCount(client, "managers", ownerId);
+}
+
+export async function getEmployeeCount(client: SupabaseClient, ownerId: string): Promise<number> {
+  const { count, error } = await client
+    .from("employees")
+    .select("*", { count: "exact", head: true })
     .eq("owner_id", ownerId)
-    .order("created_at", { ascending: false });
+    .is("deleted_at", null);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+export async function getMissionCount(
+  client: SupabaseClient, 
+  ownerId: string, 
+  options?: { excludeStatuses?: string[], status?: string }
+): Promise<number> {
+  return getCount(client, "missions", ownerId, (q) => {
+    let query = q;
+    if (options?.excludeStatuses) {
+      query = query.not("status", "in", `(${options.excludeStatuses.join(',')})`);
+    }
+    if (options?.status) {
+      query = query.eq("status", options.status);
+    }
+    return query;
+  });
+}
+
+export async function getKnowledgeCount(client: SupabaseClient, ownerId: string): Promise<number> {
+  return getCount(client, "knowledge_entries", ownerId);
+}
+
+
+async function getRecent<T>(client: SupabaseClient, table: string, selectFields: string, ownerId: string, limit: number): Promise<T[]> {
+  const { data, error } = await client.from(table).select(selectFields).eq("owner_id", ownerId).is("deleted_at", null).order("created_at", { ascending: false }).limit(limit);
+  if (error) throw error;
+  return data as T[];
+}
+
+export async function getRecentMissions(client: SupabaseClient, ownerId: string, limit: number = 5): Promise<{ id: string; title: string; status: string; created_at: string }[]> {
+  return getRecent(client, "missions", "id, title, status, created_at", ownerId, limit);
+}
+
+export async function getRecentEmployees(client: SupabaseClient, ownerId: string, limit: number = 5): Promise<{ id: string; name: string; role: string; created_at: string }[]> {
+  return getRecent(client, "employees", "id, name, role, created_at", ownerId, limit);
+}
+
+export async function getRecentKnowledge(client: SupabaseClient, ownerId: string, limit: number = 5): Promise<{ id: string; title: string; layer: string; created_at: string }[]> {
+  return getRecent(client, "knowledge_entries", "id, title, layer, created_at", ownerId, limit);
+}
+
+export async function getMissionStatuses(client: SupabaseClient, ownerId: string): Promise<{ status: string }[]> {
+  const { data, error } = await client
+    .from("missions")
+    .select("status")
+    .eq("owner_id", ownerId)
+    .is("deleted_at", null);
   if (error) throw error;
   return data ?? [];
 }
 
-/** Fetch only unread notifications for an owner. */
-export async function getUnreadNotifications(
+export async function getEmployeeStatuses(client: SupabaseClient, ownerId: string): Promise<{ status: string }[]> {
+  const { data, error } = await client
+    .from("employees")
+    .select("status")
+    .eq("owner_id", ownerId)
+    .is("deleted_at", null);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function getKnowledgeLayers(client: SupabaseClient, ownerId: string): Promise<{ layer: string }[]> {
+  const { data, error } = await client
+    .from("knowledge_entries")
+    .select("layer")
+    .eq("owner_id", ownerId)
+    .is("deleted_at", null);
+  if (error) throw error;
+  return data ?? [];
+}
+
+// ---------------------------------------------------------------------------
+// notifications
+// ---------------------------------------------------------------------------
+
+export interface NotificationFilters {
+  isRead?: boolean;
+  type?: string;
+  entityType?: string;
+  entityId?: string;
+}
+
+export async function getNotifications(
   client: SupabaseClient,
   ownerId: string,
+  filters?: NotificationFilters,
+  limit: number = 50
 ): Promise<NotificationRow[]> {
-  const { data, error } = await client
+  let query = client
     .from("notifications")
     .select("*")
     .eq("owner_id", ownerId)
-    .eq("is_read", false)
-    .order("created_at", { ascending: false });
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (filters?.isRead !== undefined) {
+    query = query.eq("is_read", filters.isRead);
+  }
+  if (filters?.type) {
+    query = query.eq("type", filters.type);
+  }
+  if (filters?.entityType) {
+    query = query.eq("entity_type", filters.entityType);
+  }
+  if (filters?.entityId) {
+    query = query.eq("entity_id", filters.entityId);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
   return data ?? [];
+}
+
+export async function getNotificationById(
+  client: SupabaseClient,
+  id: string,
+  ownerId: string
+): Promise<NotificationRow | null> {
+  const { data, error } = await client
+    .from("notifications")
+    .select("*")
+    .eq("id", id)
+    .eq("owner_id", ownerId)
+    .is("deleted_at", null)
+    .single();
+
+  if (error && error.code !== "PGRST116") throw error;
+  return data;
 }

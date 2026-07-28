@@ -30,6 +30,29 @@ export type KnowledgeLayer = "COMPANY" | "PROJECT" | "EMPLOYEE";
 
 export type AssignmentTargetType = "MANAGER" | "EMPLOYEE";
 
+export type NotificationType =
+  | "SYSTEM"
+  | "INFO"
+  | "SUCCESS"
+  | "WARNING"
+  | "ERROR"
+  | "AI"
+  | "AUTOMATION";
+
+export type NotificationActor =
+  | "SYSTEM"
+  | "OWNER"
+  | "MANAGER"
+  | "EMPLOYEE"
+  | "AI";
+
+export type NotificationEntityType =
+  | "MISSION"
+  | "MANAGER"
+  | "EMPLOYEE"
+  | "KNOWLEDGE"
+  | "ARTIFACT";
+
 // ---------------------------------------------------------------------------
 // Row types — shape of a row returned from Supabase
 // ---------------------------------------------------------------------------
@@ -45,6 +68,7 @@ export interface ProfileRow {
 export interface ManagerRow {
   id: string;
   name: string;
+  email: string;
   department: string;
   owner_id: string;
   created_at: string;
@@ -55,6 +79,7 @@ export interface ManagerRow {
 export interface EmployeeRow {
   id: string;
   name: string;
+  email: string | null;
   role: string;
   department: string;
   avatar: string | null;
@@ -113,8 +138,11 @@ export interface ArtifactRow {
   name: string;
   storage_path: string;
   mime_type: string | null;
+  size_bytes: number | null;
+  checksum: string | null;
   mission_id: string | null;
   employee_id: string | null;
+  knowledge_id: string | null;
   owner_id: string;
   created_at: string;
   updated_at: string;
@@ -127,7 +155,12 @@ export interface NotificationRow {
   title: string;
   body: string | null;
   is_read: boolean;
+  type: NotificationType;
+  actor: NotificationActor;
+  entity_type: NotificationEntityType | null;
+  entity_id: string | null;
   created_at: string;
+  deleted_at: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -167,7 +200,7 @@ export type ArtifactInsert = Omit<
   "id" | "created_at" | "updated_at" | "deleted_at"
 >;
 
-export type NotificationInsert = Omit<NotificationRow, "id" | "created_at">;
+export type NotificationInsert = Omit<NotificationRow, "id" | "created_at" | "deleted_at">;
 
 // ---------------------------------------------------------------------------
 // Update types — all fields optional except id

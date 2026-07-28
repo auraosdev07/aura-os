@@ -14,6 +14,7 @@ import {
   FolderOpen,
   Settings,
   User,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -47,6 +48,8 @@ export const NAVIGATION: NavSection[] = [
         icon: LayoutDashboard,
         exactMatch: true,
       },
+      { href: "/managers", label: "Managers", icon: Users },
+      { href: "/employees", label: "Employees", icon: Users },
       { href: "/missions", label: "Missions", icon: Crosshair },
       { href: "/agents",   label: "Agents",   icon: Bot },
       { href: "/tasks",    label: "Tasks",     icon: CheckSquare },

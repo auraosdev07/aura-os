@@ -112,12 +112,14 @@ export async function createManager(
 export async function updateManager(
   client: SupabaseClient,
   managerId: string,
+  ownerId: string,
   data: ManagerUpdate,
 ): Promise<ManagerRow> {
   const { data: row, error } = await client
     .from("managers")
     .update(data)
     .eq("id", managerId)
+    .eq("owner_id", ownerId)
     .is("deleted_at", null)
     .select()
     .single();
@@ -129,12 +131,29 @@ export async function updateManager(
 export async function softDeleteManager(
   client: SupabaseClient,
   managerId: string,
+  ownerId: string,
 ): Promise<void> {
   const { error } = await client
     .from("managers")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", managerId)
+    .eq("owner_id", ownerId)
     .is("deleted_at", null);
+  if (error) throw error;
+}
+
+/** Restore a soft-deleted Manager (sets deleted_at = null). */
+export async function restoreManager(
+  client: SupabaseClient,
+  managerId: string,
+  ownerId: string,
+): Promise<void> {
+  const { error } = await client
+    .from("managers")
+    .update({ deleted_at: null })
+    .eq("id", managerId)
+    .eq("owner_id", ownerId)
+    .not("deleted_at", "is", null);
   if (error) throw error;
 }
 
@@ -160,12 +179,14 @@ export async function createEmployee(
 export async function updateEmployee(
   client: SupabaseClient,
   employeeId: string,
+  ownerId: string,
   data: EmployeeUpdate,
 ): Promise<EmployeeRow> {
   const { data: row, error } = await client
     .from("employees")
     .update(data)
     .eq("id", employeeId)
+    .eq("owner_id", ownerId)
     .is("deleted_at", null)
     .select()
     .single();
@@ -177,12 +198,28 @@ export async function updateEmployee(
 export async function softDeleteEmployee(
   client: SupabaseClient,
   employeeId: string,
+  ownerId: string,
 ): Promise<void> {
   const { error } = await client
     .from("employees")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", employeeId)
-    .is("deleted_at", null);
+    .eq("owner_id", ownerId)
+  if (error) throw error;
+}
+
+/** Restore a soft-deleted Employee (sets deleted_at = null). */
+export async function restoreEmployee(
+  client: SupabaseClient,
+  employeeId: string,
+  ownerId: string,
+): Promise<void> {
+  const { error } = await client
+    .from("employees")
+    .update({ deleted_at: null })
+    .eq("id", employeeId)
+    .eq("owner_id", ownerId)
+    .not("deleted_at", "is", null);
   if (error) throw error;
 }
 
@@ -208,12 +245,14 @@ export async function createMission(
 export async function updateMission(
   client: SupabaseClient,
   missionId: string,
+  ownerId: string,
   data: MissionUpdate,
 ): Promise<MissionRow> {
   const { data: row, error } = await client
     .from("missions")
     .update(data)
     .eq("id", missionId)
+    .eq("owner_id", ownerId)
     .is("deleted_at", null)
     .select()
     .single();
@@ -225,12 +264,29 @@ export async function updateMission(
 export async function softDeleteMission(
   client: SupabaseClient,
   missionId: string,
+  ownerId: string,
 ): Promise<void> {
   const { error } = await client
     .from("missions")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", missionId)
+    .eq("owner_id", ownerId)
     .is("deleted_at", null);
+  if (error) throw error;
+}
+
+/** Restore a soft-deleted Mission (sets deleted_at = null). */
+export async function restoreMission(
+  client: SupabaseClient,
+  missionId: string,
+  ownerId: string,
+): Promise<void> {
+  const { error } = await client
+    .from("missions")
+    .update({ deleted_at: null })
+    .eq("id", missionId)
+    .eq("owner_id", ownerId)
+    .not("deleted_at", "is", null);
   if (error) throw error;
 }
 
@@ -286,12 +342,14 @@ export async function createKnowledgeEntry(
 export async function updateKnowledgeEntry(
   client: SupabaseClient,
   entryId: string,
+  ownerId: string,
   data: KnowledgeEntryUpdate,
 ): Promise<KnowledgeEntryRow> {
   const { data: row, error } = await client
     .from("knowledge_entries")
     .update(data)
     .eq("id", entryId)
+    .eq("owner_id", ownerId)
     .is("deleted_at", null)
     .select()
     .single();
@@ -303,12 +361,29 @@ export async function updateKnowledgeEntry(
 export async function softDeleteKnowledgeEntry(
   client: SupabaseClient,
   entryId: string,
+  ownerId: string,
 ): Promise<void> {
   const { error } = await client
     .from("knowledge_entries")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", entryId)
+    .eq("owner_id", ownerId)
     .is("deleted_at", null);
+  if (error) throw error;
+}
+
+/** Restore a soft-deleted knowledge entry. */
+export async function restoreKnowledgeEntry(
+  client: SupabaseClient,
+  entryId: string,
+  ownerId: string,
+): Promise<void> {
+  const { error } = await client
+    .from("knowledge_entries")
+    .update({ deleted_at: null })
+    .eq("id", entryId)
+    .eq("owner_id", ownerId)
+    .not("deleted_at", "is", null);
   if (error) throw error;
 }
 
@@ -334,12 +409,14 @@ export async function createArtifact(
 export async function updateArtifact(
   client: SupabaseClient,
   artifactId: string,
+  ownerId: string,
   data: ArtifactUpdate,
 ): Promise<ArtifactRow> {
   const { data: row, error } = await client
     .from("artifacts")
     .update(data)
     .eq("id", artifactId)
+    .eq("owner_id", ownerId)
     .is("deleted_at", null)
     .select()
     .single();
@@ -351,11 +428,13 @@ export async function updateArtifact(
 export async function softDeleteArtifact(
   client: SupabaseClient,
   artifactId: string,
+  ownerId: string,
 ): Promise<void> {
   const { error } = await client
     .from("artifacts")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", artifactId)
+    .eq("owner_id", ownerId)
     .is("deleted_at", null);
   if (error) throw error;
 }
@@ -382,12 +461,14 @@ export async function createNotification(
 export async function updateNotification(
   client: SupabaseClient,
   notificationId: string,
+  ownerId: string,
   data: NotificationUpdate,
 ): Promise<NotificationRow> {
   const { data: row, error } = await client
     .from("notifications")
     .update(data)
     .eq("id", notificationId)
+    .eq("owner_id", ownerId)
     .select()
     .single();
   if (error) throw error;
@@ -407,7 +488,7 @@ export async function markAllNotificationsRead(
   if (error) throw error;
 }
 
-/** Hard-delete a Notification (permitted — no soft delete on notifications). */
+/** Hard-delete a Notification (permitted). */
 export async function deleteNotification(
   client: SupabaseClient,
   notificationId: string,
@@ -416,5 +497,63 @@ export async function deleteNotification(
     .from("notifications")
     .delete()
     .eq("id", notificationId);
+  if (error) throw error;
+}
+
+/** Soft-delete a Notification. */
+export async function softDeleteNotification(
+  client: SupabaseClient,
+  notificationId: string,
+  ownerId: string,
+): Promise<void> {
+  const { error } = await client
+    .from("notifications")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", notificationId)
+    .eq("owner_id", ownerId)
+    .is("deleted_at", null);
+  if (error) throw error;
+}
+
+/** Restore a soft-deleted Notification. */
+export async function restoreNotification(
+  client: SupabaseClient,
+  notificationId: string,
+  ownerId: string,
+): Promise<void> {
+  const { error } = await client
+    .from("notifications")
+    .update({ deleted_at: null })
+    .eq("id", notificationId)
+    .eq("owner_id", ownerId)
+    .not("deleted_at", "is", null);
+  if (error) throw error;
+}
+
+
+export async function restoreArtifact(
+  client: SupabaseClient,
+  artifactId: string,
+  ownerId: string
+): Promise<void> {
+  const { error } = await client
+    .from("artifacts")
+    .update({ deleted_at: null })
+    .eq("id", artifactId)
+    .eq("owner_id", ownerId)
+    .not("deleted_at", "is", null);
+  if (error) throw error;
+}
+
+export async function hardDeleteArtifact(
+  client: SupabaseClient,
+  artifactId: string,
+  ownerId: string
+): Promise<void> {
+  const { error } = await client
+    .from("artifacts")
+    .delete()
+    .eq("id", artifactId)
+    .eq("owner_id", ownerId);
   if (error) throw error;
 }

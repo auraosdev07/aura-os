@@ -1,3 +1,5 @@
+"use server";
+
 /**
  * services/auth.ts
  *
@@ -8,7 +10,7 @@
  * Architecture reference: ARCHITECTURE.md §8 Data Flow
  */
 
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/server";
 
 export interface SignInResult {
   error: string | null;
@@ -22,7 +24,7 @@ export async function signIn(
   email: string,
   password: string,
 ): Promise<SignInResult> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
@@ -38,6 +40,6 @@ export async function signIn(
  * Clears the Supabase session cookie.
  */
 export async function signOut(): Promise<void> {
-  const supabase = createClient();
+  const supabase = await createClient();
   await supabase.auth.signOut();
 }
