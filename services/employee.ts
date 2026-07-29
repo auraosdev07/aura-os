@@ -24,7 +24,7 @@ import {
 } from "@/lib/db/mutations";
 import type { EmployeeRow, EmployeeInsert, EmployeeUpdate, MissionAssignmentRow } from "@/types/database";
 
-export type { EmployeeFilters };
+
 
 /**
  * EmployeeView defines the UI-facing representation of an Employee.

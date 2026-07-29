@@ -16,12 +16,43 @@ function SidebarNavItem({
   label,
   icon: Icon,
   exactMatch = false,
+  disabled,
   collapsed,
 }: NavItem & { collapsed: boolean }) {
   const pathname = usePathname();
   const isActive = exactMatch
     ? pathname === href
     : pathname === href || pathname.startsWith(`${href}/`);
+
+  if (disabled) {
+    return (
+      <div
+        title={collapsed ? label : undefined}
+        className={cn(
+          "group relative flex items-center gap-3 rounded-lg px-3 py-2.5",
+          "text-sm font-medium transition-all duration-200",
+          "text-sidebar-foreground/30 cursor-not-allowed",
+          collapsed && "justify-center px-0",
+        )}
+      >
+        <Icon className="h-[18px] w-[18px] shrink-0 text-sidebar-foreground/30" />
+        {!collapsed && <span className="truncate leading-none">{label}</span>}
+        {/* Hover tooltip when collapsed */}
+        {collapsed && (
+          <div
+            className={cn(
+              "pointer-events-none absolute left-full z-50 ml-3",
+              "flex items-center whitespace-nowrap rounded-md px-2.5 py-1.5",
+              "bg-popover text-popover-foreground text-xs font-medium shadow-lg border border-border",
+              "opacity-0 group-hover:opacity-100 transition-opacity duration-150",
+            )}
+          >
+            {label} (Coming Soon)
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <Link

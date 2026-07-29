@@ -1,7 +1,6 @@
 "use client";
 
 import type { TimelineItem } from "@/services/notification";
-import { cn } from "@/lib/utils";
 import {
   BrainCircuit,
   Settings,

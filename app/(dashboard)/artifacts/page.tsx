@@ -1,15 +1,8 @@
 import { getArtifacts } from "@/services/artifact";
 import { ArtifactFeature } from "@/features/artifacts/artifact-feature";
-import { redirect } from "next/navigation";
 
 export default async function ArtifactsPage() {
-  let artifacts;
-  try {
-    artifacts = await getArtifacts();
-  } catch (error) {
-    console.error("Failed to load artifacts page", error);
-    redirect("/login");
-  }
+  const artifacts = await getArtifacts();
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">

@@ -1,9 +1,0 @@
-/**
- * middleware.ts — DEPRECATED in Next.js 16
- *
- * This file is intentionally empty.
- * Route protection and session refresh are handled by proxy.ts,
- * which is the Next.js 16 replacement for this file convention.
- *
- * @see proxy.ts
- */

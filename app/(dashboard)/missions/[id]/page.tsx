@@ -7,13 +7,14 @@ export const metadata: Metadata = {
 };
 
 interface MissionPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
-export default function MissionPage({ params }: MissionPageProps) {
+export default async function MissionPage({ params }: MissionPageProps) {
+  const resolvedParams = await params;
   return (
     <div className="flex-1 p-6 md:p-8">
-      <MissionDetails missionId={params.id} />
+      <MissionDetails missionId={resolvedParams.id} />
     </div>
   );
 }

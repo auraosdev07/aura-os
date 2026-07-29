@@ -1,7 +1,5 @@
 "use server";
 
-"use server";
-
 import { getServerContext } from "@/lib/auth/get-server-context";
 import { 
   getNotifications as getNotificationsQuery,
@@ -15,8 +13,7 @@ import {
   updateNotification,
   markAllNotificationsRead,
   softDeleteNotification,
-  restoreNotification as restoreNotificationMutation,
-  deleteNotification as hardDeleteNotification
+  restoreNotification as restoreNotificationMutation
 } from "@/lib/db/mutations";
 import type { NotificationRow } from "@/types/database";
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react"; 
+import { useRouter } from "next/navigation";
 import type { KnowledgeView } from "@/services/knowledge";
 import type { KnowledgeLayer, KnowledgeEntryInsert, KnowledgeEntryUpdate } from "@/types/database";
 import { KnowledgeToolbar } from "./knowledge-toolbar";
@@ -13,6 +14,7 @@ import { getMissions } from "@/services/mission";
 import { getEmployees } from "@/services/employee";
 
 export function KnowledgeFeature() {
+  const router = useRouter();
   const [entries, setEntries] = useState<KnowledgeView[]>([]);
   const [missions, setMissions] = useState<{ id: string; title: string }[]>([]);
   const [employees, setEmployees] = useState<{ id: string; name: string }[]>([]);
@@ -79,6 +81,7 @@ export function KnowledgeFeature() {
     }
     setIsDialogOpen(false);
     loadKnowledge();
+    router.refresh();
   };
 
   const handleArchive = async (id: string) => {
@@ -86,6 +89,7 @@ export function KnowledgeFeature() {
     try {
       await archiveKnowledge(id);
       loadKnowledge();
+      router.refresh();
     } catch (err: unknown) {
       console.error(err);
       alert(err instanceof Error ? err.message : "Failed to archive");

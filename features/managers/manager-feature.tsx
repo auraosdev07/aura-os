@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect } from "react"; 
+import { useRouter } from "next/navigation";
 import { getManagers, createManager, updateManager, archiveManager, restoreManager } from "@/services/manager";
 import type { ManagerTableRow } from "./manager-table";
 import { ManagerTable } from "./manager-table";
@@ -9,6 +10,7 @@ import { ManagerForm, type ManagerFormData } from "./manager-form";
 import { Button } from "@/components/ui/button";
 
 export function ManagerFeature() {
+  const router = useRouter();
   const [managers, setManagers] = useState<ManagerTableRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +39,7 @@ export function ManagerFeature() {
     const newManager = await createManager(data);
     setManagers(prev => [newManager, ...prev]);
     setIsCreateOpen(false);
+    router.refresh();
   }
 
   async function handleEdit(data: ManagerFormData) {
@@ -44,6 +47,7 @@ export function ManagerFeature() {
     const updated = await updateManager(editingManager.id, data);
     setManagers(prev => prev.map(m => m.id === updated.id ? updated : m));
     setEditingManager(null);
+    router.refresh();
   }
 
   async function handleArchive(manager: ManagerTableRow) {
@@ -54,6 +58,7 @@ export function ManagerFeature() {
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to archive manager.");
     }
+    router.refresh();
   }
 
   async function handleRestore(manager: ManagerTableRow) {
@@ -63,6 +68,7 @@ export function ManagerFeature() {
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to restore manager.");
     }
+    router.refresh();
   }
 
   if (isLoading) {

@@ -20,7 +20,7 @@ import {
 } from "@/lib/db/mutations";
 import type { KnowledgeEntryRow, KnowledgeEntryInsert, KnowledgeEntryUpdate } from "@/types/database";
 
-export type { KnowledgeFilters };
+
 
 /**
  * KnowledgeView defines the UI-facing representation of a Knowledge Entry.

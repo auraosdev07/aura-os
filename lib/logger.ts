@@ -10,7 +10,6 @@ type LogLevel = "info" | "warn" | "error" | "debug" | "ai";
 class Logger {
   private log(level: LogLevel, message: string, data?: unknown) {
     const timestamp = new Date().toISOString();
-    const payload = { timestamp, level, message, data };
     
     // In development, log cleanly. In production, this might be a JSON string.
     if (level === "error") {

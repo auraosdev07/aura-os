@@ -29,6 +29,10 @@ export interface NavItem {
    * When false (default), it matches any pathname that starts with `href`.
    */
   exactMatch?: boolean;
+  /**
+   * When true, the item is rendered as a disabled placeholder.
+   */
+  disabled?: boolean;
 }
 
 export interface NavSection {
@@ -43,7 +47,7 @@ export const NAVIGATION: NavSection[] = [
     label: "Main",
     items: [
       {
-        href: "/",
+        href: "/dashboard",
         label: "Dashboard",
         icon: LayoutDashboard,
         exactMatch: true,
@@ -51,8 +55,8 @@ export const NAVIGATION: NavSection[] = [
       { href: "/managers", label: "Managers", icon: Users },
       { href: "/employees", label: "Employees", icon: Users },
       { href: "/missions", label: "Missions", icon: Crosshair },
-      { href: "/agents",   label: "Agents",   icon: Bot },
-      { href: "/tasks",    label: "Tasks",     icon: CheckSquare },
+      { href: "/agents",   label: "Agents",   icon: Bot, disabled: true },
+      { href: "/tasks",    label: "Tasks",     icon: CheckSquare, disabled: true },
     ],
   },
   {
@@ -66,7 +70,7 @@ export const NAVIGATION: NavSection[] = [
     label: "System",
     items: [
       { href: "/profile", label: "Profile", icon: User },
-      { href: "/settings", label: "Settings", icon: Settings },
+      { href: "/settings", label: "Settings", icon: Settings, disabled: true },
     ],
   },
 ];

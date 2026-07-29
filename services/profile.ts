@@ -56,7 +56,7 @@ export async function updateProfile(
   ownerId: string,
   data: ProfileUpdate,
 ): Promise<ProfileRow> {
-  const { supabase, user } = await getServerContext();
+  const { supabase } = await getServerContext();
   return await updateProfileMutation(supabase, ownerId, data);
 }
 

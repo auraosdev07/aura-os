@@ -1,18 +1,17 @@
 import { getArtifact } from "@/services/artifact";
 import { ArtifactPreview } from "@/features/artifacts/artifact-preview";
 import { ArtifactDetails } from "@/features/artifacts/artifact-details";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 
-export default async function ArtifactDetailsPage({ params }: { params: { id: string } }) {
-  let artifact;
-  try {
-    artifact = await getArtifact(params.id);
-  } catch (error) {
-    console.error("Error loading artifact:", error);
-    redirect("/artifacts");
-  }
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function ArtifactDetailsPage({ params }: PageProps) {
+  const resolvedParams = await params;
+  const artifact = await getArtifact(resolvedParams.id);
 
   if (!artifact) {
     notFound();

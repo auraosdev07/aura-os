@@ -55,7 +55,7 @@ export async function upsertProfile(
     .upsert(data, { onConflict: "id" })
     .select()
     .single();
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
   return row;
 }
 
@@ -71,7 +71,7 @@ export async function insertProfileIgnoreConflicts(
     .from("profiles")
     .upsert(data, { onConflict: "id", ignoreDuplicates: true });
   
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
 }
 
 /** Update the Owner's profile fields. */
@@ -86,7 +86,7 @@ export async function updateProfile(
     .eq("id", ownerId)
     .select()
     .single();
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
   return row;
 }
 
@@ -104,7 +104,7 @@ export async function createManager(
     .insert(data)
     .select()
     .single();
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
   return row;
 }
 
@@ -123,7 +123,7 @@ export async function updateManager(
     .is("deleted_at", null)
     .select()
     .single();
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
   return row;
 }
 
@@ -139,7 +139,7 @@ export async function softDeleteManager(
     .eq("id", managerId)
     .eq("owner_id", ownerId)
     .is("deleted_at", null);
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
 }
 
 /** Restore a soft-deleted Manager (sets deleted_at = null). */
@@ -154,7 +154,7 @@ export async function restoreManager(
     .eq("id", managerId)
     .eq("owner_id", ownerId)
     .not("deleted_at", "is", null);
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
 }
 
 // ---------------------------------------------------------------------------
@@ -171,7 +171,7 @@ export async function createEmployee(
     .insert(data)
     .select()
     .single();
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
   return row;
 }
 
@@ -190,7 +190,7 @@ export async function updateEmployee(
     .is("deleted_at", null)
     .select()
     .single();
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
   return row;
 }
 
@@ -205,7 +205,7 @@ export async function softDeleteEmployee(
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", employeeId)
     .eq("owner_id", ownerId)
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
 }
 
 /** Restore a soft-deleted Employee (sets deleted_at = null). */
@@ -220,7 +220,7 @@ export async function restoreEmployee(
     .eq("id", employeeId)
     .eq("owner_id", ownerId)
     .not("deleted_at", "is", null);
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
 }
 
 // ---------------------------------------------------------------------------
@@ -237,7 +237,7 @@ export async function createMission(
     .insert(data)
     .select()
     .single();
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
   return row;
 }
 
@@ -256,7 +256,7 @@ export async function updateMission(
     .is("deleted_at", null)
     .select()
     .single();
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
   return row;
 }
 
@@ -272,7 +272,7 @@ export async function softDeleteMission(
     .eq("id", missionId)
     .eq("owner_id", ownerId)
     .is("deleted_at", null);
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
 }
 
 /** Restore a soft-deleted Mission (sets deleted_at = null). */
@@ -287,7 +287,7 @@ export async function restoreMission(
     .eq("id", missionId)
     .eq("owner_id", ownerId)
     .not("deleted_at", "is", null);
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
 }
 
 // ---------------------------------------------------------------------------
@@ -304,7 +304,7 @@ export async function createMissionAssignment(
     .insert(data)
     .select()
     .single();
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
   return row;
 }
 
@@ -317,7 +317,7 @@ export async function deleteMissionAssignment(
     .from("mission_assignments")
     .delete()
     .eq("id", assignmentId);
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
 }
 
 // ---------------------------------------------------------------------------
@@ -334,7 +334,7 @@ export async function createKnowledgeEntry(
     .insert(data)
     .select()
     .single();
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
   return row;
 }
 
@@ -353,7 +353,7 @@ export async function updateKnowledgeEntry(
     .is("deleted_at", null)
     .select()
     .single();
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
   return row;
 }
 
@@ -369,7 +369,7 @@ export async function softDeleteKnowledgeEntry(
     .eq("id", entryId)
     .eq("owner_id", ownerId)
     .is("deleted_at", null);
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
 }
 
 /** Restore a soft-deleted knowledge entry. */
@@ -384,7 +384,7 @@ export async function restoreKnowledgeEntry(
     .eq("id", entryId)
     .eq("owner_id", ownerId)
     .not("deleted_at", "is", null);
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
 }
 
 // ---------------------------------------------------------------------------
@@ -401,7 +401,7 @@ export async function createArtifact(
     .insert(data)
     .select()
     .single();
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
   return row;
 }
 
@@ -420,7 +420,7 @@ export async function updateArtifact(
     .is("deleted_at", null)
     .select()
     .single();
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
   return row;
 }
 
@@ -436,7 +436,7 @@ export async function softDeleteArtifact(
     .eq("id", artifactId)
     .eq("owner_id", ownerId)
     .is("deleted_at", null);
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
 }
 
 // ---------------------------------------------------------------------------
@@ -453,7 +453,7 @@ export async function createNotification(
     .insert(data)
     .select()
     .single();
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
   return row;
 }
 
@@ -471,7 +471,7 @@ export async function updateNotification(
     .eq("owner_id", ownerId)
     .select()
     .single();
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
   return row;
 }
 
@@ -485,7 +485,7 @@ export async function markAllNotificationsRead(
     .update({ is_read: true })
     .eq("owner_id", ownerId)
     .eq("is_read", false);
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
 }
 
 /** Hard-delete a Notification (permitted). */
@@ -497,7 +497,7 @@ export async function deleteNotification(
     .from("notifications")
     .delete()
     .eq("id", notificationId);
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
 }
 
 /** Soft-delete a Notification. */
@@ -512,7 +512,7 @@ export async function softDeleteNotification(
     .eq("id", notificationId)
     .eq("owner_id", ownerId)
     .is("deleted_at", null);
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
 }
 
 /** Restore a soft-deleted Notification. */
@@ -527,7 +527,7 @@ export async function restoreNotification(
     .eq("id", notificationId)
     .eq("owner_id", ownerId)
     .not("deleted_at", "is", null);
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
 }
 
 
@@ -542,7 +542,7 @@ export async function restoreArtifact(
     .eq("id", artifactId)
     .eq("owner_id", ownerId)
     .not("deleted_at", "is", null);
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
 }
 
 export async function hardDeleteArtifact(
@@ -555,5 +555,5 @@ export async function hardDeleteArtifact(
     .delete()
     .eq("id", artifactId)
     .eq("owner_id", ownerId);
-  if (error) throw error;
+  if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
 }

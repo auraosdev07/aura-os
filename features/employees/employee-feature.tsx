@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react"; 
+import { useRouter } from "next/navigation";
 import { 
   getEmployees, 
   getArchivedEmployees, 
@@ -8,9 +9,8 @@ import {
   updateEmployee, 
   archiveEmployee, 
   restoreEmployee, 
-  type EmployeeView, 
-  type EmployeeFilters 
-} from "@/services/employee";
+  type EmployeeView} from "@/services/employee";
+import type { EmployeeFilters } from "@/lib/db/queries";
 // We need to import getManagers from a client-safe service to get the active managers list.
 // The user specified that "Manager dropdown must come through the service layer."
 // And "Do NOT bypass services."
@@ -23,6 +23,7 @@ import { EmployeeToolbar } from "./employee-toolbar";
 import { Button } from "@/components/ui/button";
 
 export function EmployeeFeature() {
+  const router = useRouter();
   const [employees, setEmployees] = useState<EmployeeView[]>([]);
   const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -76,6 +77,7 @@ export function EmployeeFeature() {
     await loadData();
     setIsCreateOpen(false);
     showToast("Employee created successfully");
+    router.refresh();
   }
 
   async function handleEdit(data: EmployeeFormData) {
@@ -84,6 +86,7 @@ export function EmployeeFeature() {
     await loadData();
     setEditingEmployee(null);
     showToast("Employee updated successfully");
+    router.refresh();
   }
 
   async function handleArchive(employee: EmployeeView) {
@@ -94,6 +97,7 @@ export function EmployeeFeature() {
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to archive employee", "error");
     }
+    router.refresh();
   }
 
   async function handleRestore(employee: EmployeeView) {
@@ -104,6 +108,7 @@ export function EmployeeFeature() {
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to restore employee", "error");
     }
+    router.refresh();
   }
 
   return (

@@ -1,17 +1,9 @@
 import { getNotifications, buildActivityTimeline } from "@/services/notification";
 import { NotificationFeature } from "@/features/notifications/notification-feature";
-import { redirect } from "next/navigation";
 
 export default async function NotificationsPage() {
-  let notifications;
-  let timeline;
-  try {
-    notifications = await getNotifications();
-    timeline = await buildActivityTimeline();
-  } catch (error) {
-    console.error("Failed to load notifications page", error);
-    redirect("/login");
-  }
+  const notifications = await getNotifications();
+  const timeline = await buildActivityTimeline();
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">

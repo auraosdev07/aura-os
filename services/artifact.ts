@@ -1,7 +1,5 @@
 "use server";
 
-"use server";
-
 import { getServerContext } from "@/lib/auth/get-server-context";
 import {
   getArtifacts as getArtifactsQuery,

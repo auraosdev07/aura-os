@@ -17,8 +17,7 @@ import {
   getArchivedMissions as getArchivedMissionsQuery,
   getMissionById,
   getMissionAssignments,
-  getManagerById,
-  getEmployeeById,
+  type MissionFilters
 } from "@/lib/db/queries";
 import {
   createMission as createMissionMutation,
@@ -44,12 +43,7 @@ export interface MissionView extends MissionRow {
   knowledgeCount: number;
 }
 
-export interface MissionFilters {
-  status?: string;
-  search?: string;
-  limit?: number;
-  offset?: number;
-}
+
 
 export async function getMissions(filters?: MissionFilters): Promise<MissionView[]> {
   const { supabase, user } = await getServerContext();

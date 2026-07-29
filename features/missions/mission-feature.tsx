@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { getMissions, getArchivedMissions, createMission, updateMission, archiveMission, restoreMission, type MissionView, type MissionFilters } from "@/services/mission";
+import { useState, useEffect } from "react"; 
+import { useRouter } from "next/navigation";
+import { getMissions, getArchivedMissions, createMission, updateMission, archiveMission, restoreMission, type MissionView} from "@/services/mission";
+import type { MissionFilters } from "@/lib/db/queries";
 import { MissionTable } from "./mission-table";
 import { MissionDialog } from "./mission-dialog";
 import { MissionForm, type MissionFormData } from "./mission-form";
@@ -9,6 +11,7 @@ import { MissionToolbar } from "./mission-toolbar";
 import { Button } from "@/components/ui/button";
 
 export function MissionFeature() {
+  const router = useRouter();
   const [missions, setMissions] = useState<MissionView[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +59,7 @@ export function MissionFeature() {
     await createMission({ ...data, assigned_to: null });
     await loadMissions();
     setIsCreateOpen(false);
+    router.refresh();
   }
 
   async function handleEdit(data: MissionFormData) {
@@ -63,6 +67,7 @@ export function MissionFeature() {
     await updateMission(editingMission.id, data);
     await loadMissions();
     setEditingMission(null);
+    router.refresh();
   }
 
   async function handleArchive(mission: MissionView) {
@@ -72,6 +77,7 @@ export function MissionFeature() {
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to archive mission.");
     }
+    router.refresh();
   }
 
   async function handleRestore(mission: MissionView) {
@@ -81,6 +87,7 @@ export function MissionFeature() {
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to restore mission.");
     }
+    router.refresh();
   }
 
   return (
