@@ -203,6 +203,44 @@ export type ArtifactInsert = Omit<
 export type NotificationInsert = Omit<NotificationRow, "id" | "created_at" | "deleted_at">;
 
 // ---------------------------------------------------------------------------
+// AI Foundation Table Types
+// ---------------------------------------------------------------------------
+
+export interface AiConversationRow {
+  id: string;
+  owner_id: string;
+  title: string;
+  provider: string;
+  model: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface AiMessageRow {
+  id: string;
+  conversation_id: string;
+  role: "system" | "user" | "assistant" | "tool";
+  content: string;
+  tokens_used: number | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface AiUsageLogRow {
+  id: string;
+  owner_id: string;
+  provider: string;
+  model: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  latency_ms: number;
+  status: "success" | "error";
+  created_at: string;
+}
+
+// ---------------------------------------------------------------------------
 // Update types — all fields optional except id
 // ---------------------------------------------------------------------------
 
@@ -214,3 +252,11 @@ export type KnowledgeEntryUpdate = Partial<Omit<KnowledgeEntryRow, "id" | "owner
 export type ArtifactUpdate = Partial<Omit<ArtifactRow, "id" | "owner_id" | "created_at">>;
 export type NotificationUpdate = Partial<Omit<NotificationRow, "id" | "owner_id" | "created_at">>;
 export type ProfileUpdate = Partial<Omit<ProfileRow, "id" | "created_at">>;
+
+export type AiConversationInsert = Omit<AiConversationRow, "id" | "created_at" | "updated_at" | "deleted_at">;
+export type AiMessageInsert = Omit<AiMessageRow, "id" | "created_at">;
+export type AiUsageLogInsert = Omit<AiUsageLogRow, "id" | "created_at">;
+
+export type AiConversationUpdate = Partial<Omit<AiConversationRow, "id" | "owner_id" | "created_at">>;
+export type AiMessageUpdate = Partial<Omit<AiMessageRow, "id" | "conversation_id" | "created_at">>;
+export type AiUsageLogUpdate = Partial<Omit<AiUsageLogRow, "id" | "owner_id" | "created_at">>;

@@ -15,6 +15,7 @@ import {
   Settings,
   User,
   Users,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 
@@ -52,6 +53,7 @@ export const NAVIGATION: NavSection[] = [
         icon: LayoutDashboard,
         exactMatch: true,
       },
+      { href: "/ai", label: "AI Workspace", icon: Sparkles },
       { href: "/managers", label: "Managers", icon: Users },
       { href: "/employees", label: "Employees", icon: Users },
       { href: "/missions", label: "Missions", icon: Crosshair },
