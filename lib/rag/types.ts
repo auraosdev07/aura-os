@@ -38,3 +38,39 @@ export interface BatchEmbeddingResult {
   embeddings: number[][];
   totalTokens?: number;
 }
+
+export interface VectorSearchOptions {
+  query: string;
+  limit?: number;
+  threshold?: number;
+  layer?: string;
+  missionId?: string;
+  ownerId?: string;
+}
+
+export interface VectorSearchResult {
+  id: string;
+  ownerId: string;
+  knowledgeId: string | null;
+  artifactId: string | null;
+  chunkIndex: number;
+  content: string;
+  tokenCount: number | null;
+  metadata: Record<string, unknown>;
+  similarity: number;
+}
+
+export interface RetrievalOptions {
+  query: string;
+  limit?: number;
+  threshold?: number;
+  layer?: string;
+  missionId?: string;
+  maxTokens?: number;
+}
+
+export interface RetrievedContext {
+  formattedContext: string;
+  chunks: VectorSearchResult[];
+  totalTokens: number;
+}
