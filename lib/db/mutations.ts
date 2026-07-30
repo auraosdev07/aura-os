@@ -39,6 +39,8 @@ import type {
   NotificationRow,
   NotificationInsert,
   NotificationUpdate,
+  KnowledgeChunkRow,
+  KnowledgeChunkInsert,
 } from "@/types/database";
 
 // ---------------------------------------------------------------------------
@@ -556,4 +558,59 @@ export async function hardDeleteArtifact(
     .eq("id", artifactId)
     .eq("owner_id", ownerId);
   if (error) { console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2)); throw error; }
+}
+
+// ---------------------------------------------------------------------------
+// knowledge_chunks
+// ---------------------------------------------------------------------------
+
+/** Insert multiple knowledge chunks in a single bulk operation. */
+export async function insertKnowledgeChunks(
+  client: SupabaseClient,
+  chunks: KnowledgeChunkInsert[]
+): Promise<KnowledgeChunkRow[]> {
+  if (chunks.length === 0) return [];
+  const { data, error } = await client
+    .from("knowledge_chunks")
+    .insert(chunks)
+    .select("*");
+  if (error) {
+    console.error("SUPABASE ERROR (insertKnowledgeChunks):", JSON.stringify(error, null, 2));
+    throw error;
+  }
+  return data ?? [];
+}
+
+/** Delete all indexed chunks for a knowledge entry. */
+export async function deleteKnowledgeChunksByKnowledgeId(
+  client: SupabaseClient,
+  knowledgeId: string,
+  ownerId: string
+): Promise<void> {
+  const { error } = await client
+    .from("knowledge_chunks")
+    .delete()
+    .eq("knowledge_id", knowledgeId)
+    .eq("owner_id", ownerId);
+  if (error) {
+    console.error("SUPABASE ERROR (deleteKnowledgeChunksByKnowledgeId):", JSON.stringify(error, null, 2));
+    throw error;
+  }
+}
+
+/** Delete all indexed chunks for an artifact. */
+export async function deleteKnowledgeChunksByArtifactId(
+  client: SupabaseClient,
+  artifactId: string,
+  ownerId: string
+): Promise<void> {
+  const { error } = await client
+    .from("knowledge_chunks")
+    .delete()
+    .eq("artifact_id", artifactId)
+    .eq("owner_id", ownerId);
+  if (error) {
+    console.error("SUPABASE ERROR (deleteKnowledgeChunksByArtifactId):", JSON.stringify(error, null, 2));
+    throw error;
+  }
 }

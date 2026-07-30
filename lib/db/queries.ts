@@ -23,6 +23,7 @@ import type {
   KnowledgeEntryRow,
   ArtifactRow,
   NotificationRow,
+  KnowledgeChunkRow,
   MissionStatus,
   EmployeeStatus,
   KnowledgeLayer,
@@ -493,6 +494,34 @@ export async function getKnowledgeEntriesByEmployee(
     .eq("employee_id", employeeId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Fetch indexed knowledge chunks for a knowledge entry. */
+export async function getKnowledgeChunksByKnowledgeId(
+  client: SupabaseClient,
+  knowledgeId: string,
+): Promise<KnowledgeChunkRow[]> {
+  const { data, error } = await client
+    .from("knowledge_chunks")
+    .select("*")
+    .eq("knowledge_id", knowledgeId)
+    .order("chunk_index", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Fetch indexed knowledge chunks for an artifact. */
+export async function getKnowledgeChunksByArtifactId(
+  client: SupabaseClient,
+  artifactId: string,
+): Promise<KnowledgeChunkRow[]> {
+  const { data, error } = await client
+    .from("knowledge_chunks")
+    .select("*")
+    .eq("artifact_id", artifactId)
+    .order("chunk_index", { ascending: true });
   if (error) throw error;
   return data ?? [];
 }

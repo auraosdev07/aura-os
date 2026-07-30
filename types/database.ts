@@ -240,6 +240,19 @@ export interface AiUsageLogRow {
   created_at: string;
 }
 
+export interface KnowledgeChunkRow {
+  id: string;
+  owner_id: string;
+  knowledge_id: string | null;
+  artifact_id: string | null;
+  chunk_index: number;
+  content: string;
+  token_count: number | null;
+  metadata: Record<string, unknown>;
+  embedding: number[];
+  created_at: string;
+}
+
 // ---------------------------------------------------------------------------
 // Update types — all fields optional except id
 // ---------------------------------------------------------------------------
@@ -256,7 +269,9 @@ export type ProfileUpdate = Partial<Omit<ProfileRow, "id" | "created_at">>;
 export type AiConversationInsert = Omit<AiConversationRow, "id" | "created_at" | "updated_at" | "deleted_at">;
 export type AiMessageInsert = Omit<AiMessageRow, "id" | "created_at">;
 export type AiUsageLogInsert = Omit<AiUsageLogRow, "id" | "created_at">;
+export type KnowledgeChunkInsert = Omit<KnowledgeChunkRow, "id" | "created_at">;
 
 export type AiConversationUpdate = Partial<Omit<AiConversationRow, "id" | "owner_id" | "created_at">>;
 export type AiMessageUpdate = Partial<Omit<AiMessageRow, "id" | "conversation_id" | "created_at">>;
 export type AiUsageLogUpdate = Partial<Omit<AiUsageLogRow, "id" | "owner_id" | "created_at">>;
+export type KnowledgeChunkUpdate = Partial<Omit<KnowledgeChunkRow, "id" | "owner_id" | "created_at">>;
