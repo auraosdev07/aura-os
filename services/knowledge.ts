@@ -19,6 +19,7 @@ import {
   restoreKnowledgeEntry as restoreKnowledgeEntryMutation,
 } from "@/lib/db/mutations";
 import type { KnowledgeEntryRow, KnowledgeEntryInsert, KnowledgeEntryUpdate } from "@/types/database";
+import { indexKnowledge, deleteKnowledgeIndex } from "@/services/rag";
 
 
 
@@ -84,6 +85,13 @@ export async function createKnowledge(
     owner_id: user.id,
   });
   
+  // Automatic RAG indexing (never blocks or rolls back main CRUD operation)
+  try {
+    await indexKnowledge(row.id);
+  } catch (err) {
+    console.error(`[RAG AUTO-INDEXING ERROR] Failed to index knowledge entry ${row.id}:`, err);
+  }
+  
   return toKnowledgeView(row);
 }
 
@@ -99,6 +107,14 @@ export async function updateKnowledge(id: string, data: KnowledgeEntryUpdate): P
   }
   
   const row = await updateKnowledgeEntryMutation(supabase, id, user.id, data);
+
+  // Automatic RAG re-indexing
+  try {
+    await indexKnowledge(id);
+  } catch (err) {
+    console.error(`[RAG AUTO-INDEXING ERROR] Failed to re-index knowledge entry ${id}:`, err);
+  }
+  
   return toKnowledgeView(row);
 }
 
@@ -106,12 +122,26 @@ export async function archiveKnowledge(id: string): Promise<void> {
   const { supabase, user } = await getServerContext();
   
   await softDeleteKnowledgeEntry(supabase, id, user.id);
+
+  // Automatic index deletion
+  try {
+    await deleteKnowledgeIndex(id);
+  } catch (err) {
+    console.error(`[RAG AUTO-INDEXING ERROR] Failed to delete index for knowledge entry ${id}:`, err);
+  }
 }
 
 export async function restoreKnowledge(id: string): Promise<void> {
   const { supabase, user } = await getServerContext();
   
   await restoreKnowledgeEntryMutation(supabase, id, user.id);
+
+  // Automatic RAG re-indexing on restore
+  try {
+    await indexKnowledge(id);
+  } catch (err) {
+    console.error(`[RAG AUTO-INDEXING ERROR] Failed to re-index restored knowledge entry ${id}:`, err);
+  }
 }
 
 /** 

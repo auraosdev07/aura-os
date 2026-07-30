@@ -15,6 +15,7 @@ import {
   hardDeleteArtifact
 } from "@/lib/db/mutations";
 import type { ArtifactInsert, ArtifactUpdate } from "@/types/database";
+import { indexArtifact, deleteArtifactIndex } from "@/services/rag";
 
 export interface ArtifactView {
   id: string;
@@ -149,6 +150,14 @@ export async function createArtifact(payload: UploadArtifactPayload): Promise<Ar
     if (!resolvedRow) throw new Error("Failed to retrieve created artifact");
 
     const { data: publicUrlData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(storagePath);
+
+    // Automatic RAG indexing (never blocks or rolls back main CRUD operation)
+    try {
+      await indexArtifact(resolvedRow.id);
+    } catch (err) {
+      console.error(`[RAG AUTO-INDEXING ERROR] Failed to index artifact ${resolvedRow.id}:`, err);
+    }
+
     return mapArtifact(resolvedRow, publicUrlData.publicUrl);
   } catch (dbError: unknown) {
     const err = dbError as Error;
@@ -162,22 +171,50 @@ export async function updateArtifact(id: string, data: ArtifactUpdate): Promise<
   const { supabase, user } = await getServerContext();
 
   await updateArtifactMutation(supabase, id, user.id, data);
+
+  // Automatic RAG re-indexing
+  try {
+    await indexArtifact(id);
+  } catch (err) {
+    console.error(`[RAG AUTO-INDEXING ERROR] Failed to re-index artifact ${id}:`, err);
+  }
 }
 
 export async function archiveArtifact(id: string): Promise<void> {
   const { supabase, user } = await getServerContext();
 
   await softDeleteArtifact(supabase, id, user.id);
+
+  // Automatic index deletion
+  try {
+    await deleteArtifactIndex(id);
+  } catch (err) {
+    console.error(`[RAG AUTO-INDEXING ERROR] Failed to delete index for archived artifact ${id}:`, err);
+  }
 }
 
 export async function restoreArtifact(id: string): Promise<void> {
   const { supabase, user } = await getServerContext();
 
   await restoreArtifactMutation(supabase, id, user.id);
+
+  // Automatic RAG re-indexing on restore
+  try {
+    await indexArtifact(id);
+  } catch (err) {
+    console.error(`[RAG AUTO-INDEXING ERROR] Failed to re-index restored artifact ${id}:`, err);
+  }
 }
 
 export async function deleteArtifact(id: string): Promise<void> {
   const { supabase, user } = await getServerContext();
+
+  // Automatic index deletion before hard delete
+  try {
+    await deleteArtifactIndex(id);
+  } catch (err) {
+    console.error(`[RAG AUTO-INDEXING ERROR] Failed to delete index for artifact ${id}:`, err);
+  }
 
   // To truly delete an artifact, we should also delete the file in storage.
   const row = await getArtifactById(supabase, id, user.id);
