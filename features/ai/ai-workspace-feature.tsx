@@ -12,6 +12,7 @@ import {
   MessageSquare,
   Loader2,
   RefreshCw,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAIProviderConfigAction, healthCheckAction } from "@/services/ai";
@@ -47,6 +48,8 @@ export function AIWorkspaceFeature() {
   const [activeProvider, setActiveProvider] = useState<string>("gemini");
   const [health, setHealth] = useState<HealthCheckResult | null>(null);
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
+
+  const [knowledgeStatus, setKnowledgeStatus] = useState<"Enabled" | "None" | "Error">("None");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -154,6 +157,11 @@ export function AIWorkspaceFeature() {
         throw new Error(errJson.error || `HTTP ${response.status}: Streaming request failed.`);
       }
 
+      const ragStatus = response.headers.get("X-RAG-Status");
+      if (ragStatus === "Enabled" || ragStatus === "None" || ragStatus === "Error") {
+        setKnowledgeStatus(ragStatus);
+      }
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
 
@@ -177,6 +185,7 @@ export function AIWorkspaceFeature() {
         );
       }
     } catch (err: unknown) {
+      setKnowledgeStatus("Error");
       const errorMsg = err instanceof Error ? err.message : "Error streaming response.";
       setConversations((prev) =>
         prev.map((c) => {
@@ -208,8 +217,28 @@ export function AIWorkspaceFeature() {
           </p>
         </div>
 
-        {/* Active Provider Status Badge */}
+        {/* Status Badges Header */}
         <div className="flex items-center gap-3">
+          {/* Knowledge Status Badge */}
+          <div className="flex items-center gap-2 bg-card border rounded-lg px-3 py-1.5 text-xs font-medium shadow-sm">
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
+            <span className="text-muted-foreground">Knowledge:</span>
+            {knowledgeStatus === "Enabled" ? (
+              <span className="flex items-center gap-1 text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full text-[10px] font-semibold">
+                <CheckCircle2 className="h-3 w-3" /> Enabled
+              </span>
+            ) : knowledgeStatus === "Error" ? (
+              <span className="flex items-center gap-1 text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full text-[10px] font-semibold">
+                <AlertCircle className="h-3 w-3" /> Error
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-muted-foreground bg-muted px-2 py-0.5 rounded-full text-[10px] font-semibold">
+                None
+              </span>
+            )}
+          </div>
+
+          {/* Active Provider Status Badge */}
           <div className="flex items-center gap-2 bg-card border rounded-lg px-3 py-1.5 text-xs font-medium shadow-sm">
             <Bot className="h-4 w-4 text-muted-foreground" />
             <span className="text-muted-foreground">Provider:</span>

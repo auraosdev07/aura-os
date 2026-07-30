@@ -21,6 +21,8 @@ import type {
   AIUsageLogPayload,
 } from "@/lib/ai/types";
 
+import { retrieveContext } from "@/lib/rag/retriever";
+
 export interface AIProviderConfigInfo {
   activeProvider: string;
   availableProviders: string[];
@@ -47,7 +49,7 @@ export async function healthCheckAction(providerName?: string): Promise<HealthCh
 }
 
 /**
- * Server action to generate text completion.
+ * Server action to generate text completion with RAG Context Injection.
  */
 export async function generateTextAction(
   options: GenerateTextOptions,
@@ -56,11 +58,68 @@ export async function generateTextAction(
   const { user } = await getServerContext();
   const startTime = Date.now();
 
+  // Retrieve RAG context safely without breaking primary generation
+  let ragStatus: "Enabled" | "None" | "Error" = "None";
+  let retrievedChunkCount = 0;
+  let retrievedTokenCount = 0;
+  let retrievalLatencyMs = 0;
+  let formattedContext = "";
+
   try {
-    const result = await generateText(options, providerName);
+    const retrievalStart = Date.now();
+    const userQuery =
+      options.messages?.filter((m) => m.role === "user").slice(-1)[0]?.content || "";
+
+    if (userQuery.trim()) {
+      const contextRes = await retrieveContext({
+        query: userQuery,
+        maxTokens: 2000,
+      });
+      retrievalLatencyMs = Date.now() - retrievalStart;
+      retrievedChunkCount = contextRes.chunks.length;
+      retrievedTokenCount = contextRes.totalTokens;
+
+      if (contextRes.chunks.length > 0) {
+        ragStatus = "Enabled";
+        formattedContext = contextRes.formattedContext;
+      }
+    }
+  } catch (err) {
+    console.error("[RAG RETRIEVAL ERROR in generateTextAction]:", err);
+    ragStatus = "Error";
+  }
+
+  console.log("[RAG RETRIEVAL LOG]", {
+    chunkCount: retrievedChunkCount,
+    tokenCount: retrievedTokenCount,
+    latencyMs: retrievalLatencyMs,
+    status: ragStatus,
+  });
+
+  // Prepare updated options with injected RAG context (never overwriting system prompt)
+  const updatedOptions: GenerateTextOptions = { ...options };
+  if (formattedContext && updatedOptions.messages && updatedOptions.messages.length > 0) {
+    const sysMsgIndex = updatedOptions.messages.findIndex((m) => m.role === "system");
+    if (sysMsgIndex !== -1) {
+      const updatedMessages = [...updatedOptions.messages];
+      updatedMessages[sysMsgIndex] = {
+        ...updatedMessages[sysMsgIndex],
+        content: `${updatedMessages[sysMsgIndex].content}\n\n${formattedContext}`,
+      };
+      updatedOptions.messages = updatedMessages;
+    } else {
+      updatedOptions.messages = [
+        { role: "system", content: formattedContext },
+        ...updatedOptions.messages,
+      ];
+    }
+  }
+
+  try {
+    const result = await generateText(updatedOptions, providerName);
     const latencyMs = Date.now() - startTime;
 
-    // Log usage (placeholder architecture ready)
+    // Log usage
     await logAIUsageAction({
       ownerId: user.id,
       provider: result.provider,
