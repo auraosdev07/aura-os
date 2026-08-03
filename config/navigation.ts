@@ -16,6 +16,8 @@ import {
   User,
   Users,
   Sparkles,
+  Package,
+  Plug,
   type LucideIcon,
 } from "lucide-react";
 
@@ -54,24 +56,26 @@ export const NAVIGATION: NavSection[] = [
         exactMatch: true,
       },
       { href: "/ai", label: "AI Workspace", icon: Sparkles },
+      { href: "/integrations", label: "Integrations", icon: Plug },
+      { href: "/products", label: "Products", icon: Package },
       { href: "/managers", label: "Managers", icon: Users },
       { href: "/employees", label: "Employees", icon: Users },
       { href: "/missions", label: "Missions", icon: Crosshair },
-      { href: "/agents",   label: "Agents",   icon: Bot, disabled: true },
-      { href: "/tasks",    label: "Tasks",     icon: CheckSquare, disabled: true },
+      { href: "/agents",   label: "Agents",   icon: Bot },
+      { href: "/tasks",    label: "Tasks",    icon: CheckSquare, disabled: true },
     ],
   },
   {
-    label: "Resources",
+    label: "Knowledge & Assets",
     items: [
-      { href: "/knowledge",  label: "Knowledge",  icon: BookOpen },
-      { href: "/artifacts",  label: "Artifacts",  icon: FolderOpen },
+      { href: "/knowledge", label: "Knowledge", icon: BookOpen },
+      { href: "/artifacts", label: "Artifacts", icon: FolderOpen },
     ],
   },
   {
-    label: "System",
+    label: "Account",
     items: [
-      { href: "/profile", label: "Profile", icon: User },
+      { href: "/profile",  label: "Profile",  icon: User },
       { href: "/settings", label: "Settings", icon: Settings, disabled: true },
     ],
   },

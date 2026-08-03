@@ -13,6 +13,9 @@ import {
   Loader2,
   RefreshCw,
   BookOpen,
+  ChevronDown,
+  ChevronRight,
+  Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAIProviderConfigAction, healthCheckAction } from "@/services/ai";
@@ -23,6 +26,14 @@ interface ChatConversation {
   title: string;
   messages: AIMessage[];
   createdAt: string;
+}
+
+export interface ToolActivityItem {
+  callId: string;
+  toolName: string;
+  status: "running" | "success" | "error";
+  executionTimeMs?: number;
+  error?: string;
 }
 
 const createDefaultConversation = (): ChatConversation => ({
@@ -38,8 +49,63 @@ const createDefaultConversation = (): ChatConversation => ({
   createdAt: new Date().toISOString(),
 });
 
+const getToolLabel = (
+  toolName: string,
+  status: "running" | "success" | "error",
+  executionTimeMs?: number
+): string => {
+  const friendlyNames: Record<string, { running: string; success: string; error: string }> = {
+    search_knowledge: {
+      running: "🔎 Searching Knowledge...",
+      success: "✓ Knowledge Search Complete",
+      error: "✗ Knowledge Search Failed",
+    },
+    get_knowledge_entry: {
+      running: "📖 Retrieving Knowledge Entry...",
+      success: "✓ Knowledge Entry Loaded",
+      error: "✗ Knowledge Entry Not Found",
+    },
+    list_missions: {
+      running: "📋 Listing Missions...",
+      success: "✓ Missions Loaded",
+      error: "✗ Failed to Load Missions",
+    },
+    get_mission_status: {
+      running: "🎯 Checking Mission Status...",
+      success: "✓ Mission Status Checked",
+      error: "✗ Mission Status Check Failed",
+    },
+    list_employees: {
+      running: "👥 Listing Employees...",
+      success: "✓ Employees Loaded",
+      error: "✗ Failed to Load Employees",
+    },
+    get_employee_profile: {
+      running: "👤 Loading Employee Profile...",
+      success: "✓ Employee Profile Loaded",
+      error: "✗ Employee Profile Not Found",
+    },
+  };
+
+  const config = friendlyNames[toolName];
+  if (config) {
+    const base = config[status];
+    return status === "success" && executionTimeMs !== undefined
+      ? `${base} (${executionTimeMs}ms)`
+      : base;
+  }
+
+  const nameFormatted = toolName.replace(/_/g, " ");
+  if (status === "running") return `⚙️ Running ${nameFormatted}...`;
+  if (status === "success")
+    return `✓ ${nameFormatted} complete${executionTimeMs ? ` (${executionTimeMs}ms)` : ""}`;
+  return `✗ ${nameFormatted} failed`;
+};
+
 export function AIWorkspaceFeature() {
-  const [conversations, setConversations] = useState<ChatConversation[]>(() => [createDefaultConversation()]);
+  const [conversations, setConversations] = useState<ChatConversation[]>(() => [
+    createDefaultConversation(),
+  ]);
   const [activeId, setActiveId] = useState<string | null>("conv-initial");
 
   const [inputPrompt, setInputPrompt] = useState("");
@@ -51,7 +117,19 @@ export function AIWorkspaceFeature() {
 
   const [knowledgeStatus, setKnowledgeStatus] = useState<"Enabled" | "None" | "Error">("None");
 
+  // Track live tool execution activities per conversation
+  const [toolActivities, setToolActivities] = useState<Record<string, ToolActivityItem[]>>({});
+  const [isToolsExpanded, setIsToolsExpanded] = useState<Record<string, boolean>>({});
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [conversations, toolActivities, scrollToBottom]);
 
   // Load config & initial health check on mount
   const checkHealth = useCallback(async () => {
@@ -110,16 +188,12 @@ export function AIWorkspaceFeature() {
     const userMessage: AIMessage = { role: "user", content: userText };
     const updatedMessages = [...activeConversation.messages, userMessage];
 
-    // Determine auto-title logic:
-    // "Conversation titles must not be AI-generated. Use 'New Chat' for new conversations,
-    // and replace it with the first 40–60 characters of the user's first message after the first successful send."
     let updatedTitle = activeConversation.title;
     if (activeConversation.title === "New Chat") {
       const truncated = userText.length > 50 ? `${userText.slice(0, 47)}...` : userText;
       updatedTitle = truncated;
     }
 
-    // Update conversation state with user message
     setConversations((prev) =>
       prev.map((c) =>
         c.id === activeConversation.id
@@ -129,8 +203,10 @@ export function AIWorkspaceFeature() {
     );
 
     setIsStreaming(true);
+    // Reset tool activities for new query turn
+    setToolActivities((prev) => ({ ...prev, [activeConversation.id]: [] }));
+    setIsToolsExpanded((prev) => ({ ...prev, [activeConversation.id]: true }));
 
-    // Prepare assistant message placeholder
     const assistantPlaceholder: AIMessage = { role: "assistant", content: "" };
     let currentAssistantText = "";
 
@@ -164,26 +240,126 @@ export function AIWorkspaceFeature() {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = "";
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        currentAssistantText += chunk;
-
+      const updateAssistantMsg = (text: string) => {
         setConversations((prev) =>
           prev.map((c) => {
             if (c.id !== activeConversation.id) return c;
             const msgs = [...c.messages];
             msgs[msgs.length - 1] = {
               role: "assistant",
-              content: currentAssistantText,
+              content: text,
             };
             return { ...c, messages: msgs };
           })
         );
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const rawChunk = decoder.decode(value, { stream: true });
+        buffer += rawChunk;
+
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+
+          if (trimmed.startsWith("data: ")) {
+            const dataStr = trimmed.slice(6);
+            try {
+              const event = JSON.parse(dataStr);
+              if (event.type === "tool_start") {
+                setToolActivities((prev) => {
+                  const currentList = prev[activeConversation.id] || [];
+                  const existingIndex = currentList.findIndex((a) => a.callId === event.callId);
+                  const newItem: ToolActivityItem = {
+                    callId: event.callId,
+                    toolName: event.toolName,
+                    status: "running",
+                  };
+                  if (existingIndex >= 0) {
+                    const updated = [...currentList];
+                    updated[existingIndex] = newItem;
+                    return { ...prev, [activeConversation.id]: updated };
+                  }
+                  return { ...prev, [activeConversation.id]: [...currentList, newItem] };
+                });
+              } else if (event.type === "tool_complete") {
+                setToolActivities((prev) => {
+                  const currentList = prev[activeConversation.id] || [];
+                  const updated = currentList.map((a) =>
+                    a.callId === event.callId
+                      ? {
+                          ...a,
+                          status: (event.status === "success" ? "success" : "error") as "success" | "error",
+                          executionTimeMs: event.executionTimeMs,
+                        }
+                      : a
+                  );
+                  return { ...prev, [activeConversation.id]: updated };
+                });
+              } else if (event.type === "tool_error") {
+                setToolActivities((prev) => {
+                  const currentList = prev[activeConversation.id] || [];
+                  const updated = currentList.map((a) =>
+                    a.callId === event.callId
+                      ? {
+                          ...a,
+                          status: "error" as const,
+                          error: event.error?.message || "Tool execution failed.",
+                        }
+                      : a
+                  );
+                  return { ...prev, [activeConversation.id]: updated };
+                });
+              } else if (event.type === "assistant_chunk" || event.type === "assistant_complete") {
+                if (typeof event.text === "string" && event.text.length > 0) {
+                  currentAssistantText = event.text;
+                  updateAssistantMsg(currentAssistantText);
+                }
+              }
+            } catch {
+              // Backward compatibility for raw text streaming
+              currentAssistantText += trimmed;
+              updateAssistantMsg(currentAssistantText);
+            }
+          } else {
+            currentAssistantText += trimmed;
+            updateAssistantMsg(currentAssistantText);
+          }
+        }
       }
+
+      // Handle any trailing buffer chunk
+      if (buffer.trim()) {
+        const trimmed = buffer.trim();
+        if (trimmed.startsWith("data: ")) {
+          try {
+            const event = JSON.parse(trimmed.slice(6));
+            if (event.type === "assistant_chunk" || event.type === "assistant_complete") {
+              if (event.text) {
+                currentAssistantText = event.text;
+                updateAssistantMsg(currentAssistantText);
+              }
+            }
+          } catch {
+            currentAssistantText += trimmed;
+            updateAssistantMsg(currentAssistantText);
+          }
+        } else {
+          currentAssistantText += trimmed;
+          updateAssistantMsg(currentAssistantText);
+        }
+      }
+
+      // Auto-collapse completed tool activities
+      setIsToolsExpanded((prev) => ({ ...prev, [activeConversation.id]: false }));
     } catch (err: unknown) {
       setKnowledgeStatus("Error");
       const errorMsg = err instanceof Error ? err.message : "Error streaming response.";
@@ -203,6 +379,9 @@ export function AIWorkspaceFeature() {
     }
   }
 
+  const currentActivities = toolActivities[activeConversation?.id || ""] || [];
+  const expanded = isToolsExpanded[activeConversation?.id || ""] ?? true;
+
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] gap-6">
       {/* Page Header */}
@@ -213,7 +392,7 @@ export function AIWorkspaceFeature() {
             AI Workspace
           </h1>
           <p className="text-sm text-muted-foreground">
-            Modular AI Foundation infrastructure & streaming test workspace.
+            Modular AI Foundation infrastructure & agent tool activity workspace.
           </p>
         </div>
 
@@ -252,7 +431,10 @@ export function AIWorkspaceFeature() {
                 <CheckCircle2 className="h-3 w-3" /> Online
               </span>
             ) : (
-              <span className="flex items-center gap-1 text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full text-[10px] font-semibold ml-1" title={health?.message}>
+              <span
+                className="flex items-center gap-1 text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full text-[10px] font-semibold ml-1"
+                title={health?.message}
+              >
                 <AlertCircle className="h-3 w-3" /> Config Required
               </span>
             )}
@@ -306,36 +488,109 @@ export function AIWorkspaceFeature() {
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             {activeConversation?.messages
               .filter((m) => m.role !== "system")
-              .map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`flex gap-3 ${
-                    msg.role === "user" ? "justify-end" : "justify-start"
-                  }`}
-                >
-                  {msg.role === "assistant" && (
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 border border-primary/20">
-                      <Bot className="h-4 w-4" />
-                    </div>
-                  )}
+              .map((msg, idx, arr) => {
+                const isLastAssistant =
+                  msg.role === "assistant" && idx === arr.length - 1;
 
+                return (
                   <div
-                    className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                      msg.role === "user"
-                        ? "bg-primary text-primary-foreground font-medium"
-                        : "bg-muted/40 border text-foreground"
+                    key={idx}
+                    className={`flex gap-3 ${
+                      msg.role === "user" ? "justify-end" : "justify-start"
                     }`}
                   >
-                    <div className="whitespace-pre-wrap">{msg.content || (isStreaming && idx === activeConversation.messages.length - 1 ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : "")}</div>
-                  </div>
+                    {msg.role === "assistant" && (
+                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 border border-primary/20">
+                        <Bot className="h-4 w-4" />
+                      </div>
+                    )}
 
-                  {msg.role === "user" && (
-                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0 border">
-                      <User className="h-4 w-4" />
+                    <div className="flex flex-col max-w-[75%] gap-2">
+                      {/* Live Agent Tool Activity Panel (rendered above last assistant message if active) */}
+                      {isLastAssistant && currentActivities.length > 0 && (
+                        <div className="bg-card border rounded-xl p-3 shadow-sm text-xs space-y-2 mb-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setIsToolsExpanded((prev) => ({
+                                ...prev,
+                                [activeConversation.id]: !expanded,
+                              }))
+                            }
+                            className="flex items-center justify-between w-full font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <Wrench className="h-3.5 w-3.5 text-primary" />
+                              Agent Tool Activity ({currentActivities.length})
+                            </span>
+                            {expanded ? (
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            ) : (
+                              <ChevronRight className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+
+                          {expanded && (
+                            <div className="space-y-1.5 pt-1">
+                              {currentActivities.map((act) => (
+                                <div
+                                  key={act.callId}
+                                  className={`flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border font-medium transition-all ${
+                                    act.status === "running"
+                                      ? "bg-primary/5 text-primary border-primary/20"
+                                      : act.status === "success"
+                                      ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:text-emerald-400"
+                                      : "bg-destructive/10 text-destructive border-destructive/20"
+                                  }`}
+                                >
+                                  {act.status === "running" ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+                                  ) : act.status === "success" ? (
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                  ) : (
+                                    <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                                  )}
+                                  <span className="font-mono text-[11px] truncate">
+                                    {getToolLabel(
+                                      act.toolName,
+                                      act.status,
+                                      act.executionTimeMs
+                                    )}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Assistant Message Bubble */}
+                      <div
+                        className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                          msg.role === "user"
+                            ? "bg-primary text-primary-foreground font-medium"
+                            : "bg-muted/40 border text-foreground"
+                        }`}
+                      >
+                        <div className="whitespace-pre-wrap">
+                          {msg.content ||
+                            (isStreaming && idx === arr.length - 1 ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            ) : (
+                              ""
+                            ))}
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
-              ))}
+
+                    {msg.role === "user" && (
+                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0 border">
+                        <User className="h-4 w-4" />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             <div ref={messagesEndRef} />
           </div>
 

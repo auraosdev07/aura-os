@@ -29,6 +29,8 @@ export async function retrieveContext(
     threshold,
     layer: options.layer,
     missionId: options.missionId,
+    clientOverride: options.clientOverride,
+    userIdOverride: options.userIdOverride,
   });
 
   // 2. Remove duplicate chunks by ID and identical content

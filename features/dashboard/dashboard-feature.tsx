@@ -1,209 +1,166 @@
 "use client";
 
-import type { DashboardView } from "@/services/dashboard";
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
+import {
+  Package,
+  CheckCircle2,
+  Sparkles,
+  AlertTriangle,
+  AlertOctagon,
+  Layers,
+  ShoppingBag,
+  Users,
+  AlertCircle,
+} from "lucide-react";
 import { DashboardHeader } from "./dashboard-header";
-import { DashboardGrid } from "./dashboard-grid";
-import { DashboardSection } from "./dashboard-section";
 import { DashboardKpiCard } from "./dashboard-kpi-card";
-import { DashboardRecentList } from "./dashboard-recent-list";
-import { Users, Briefcase, Rocket, BookOpen, CheckCircle2 } from "lucide-react";
+import { DashboardSalesChart } from "./dashboard-sales-chart";
+import { fetchLiveDashboardService } from "@/services/dashboard";
+import type { AuraSoulDashboardData } from "@/types/dashboard";
 
 interface DashboardFeatureProps {
-  data: DashboardView;
+  initialData: AuraSoulDashboardData;
 }
 
-export function DashboardFeature({ data }: DashboardFeatureProps) {
-  const { kpis, recentActivity, distributions } = data;
+export function DashboardFeature({ initialData }: DashboardFeatureProps) {
+  const [data, setData] = useState<AuraSoulDashboardData>(initialData);
+  const [loading, setLoading] = useState(false);
+
+  const refreshData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const freshData = await fetchLiveDashboardService();
+      setData(freshData);
+    } catch (err: unknown) {
+      console.error("[DASHBOARD REFRESH ERROR]:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 30-second auto-revalidation interval for live telemetry
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshData();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [refreshData]);
 
   return (
     <div className="space-y-8">
-      <DashboardHeader />
+      {/* Header */}
+      <DashboardHeader
+        isConnected={data.isConnected}
+        fetchedAt={data.fetchedAt}
+        loading={loading}
+        onRefresh={refreshData}
+      />
 
-      {/* KPI Section */}
-      <DashboardGrid className="grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-5">
-        <DashboardKpiCard 
-          title="Total Managers" 
-          value={kpis.totalManagers} 
-          icon={<Briefcase />}
-        />
-        <DashboardKpiCard 
-          title="Total Employees" 
-          value={kpis.totalEmployees} 
-          icon={<Users />}
-        />
-        <DashboardKpiCard 
-          title="Active Missions" 
-          value={kpis.activeMissions} 
-          icon={<Rocket />}
-        />
-        <DashboardKpiCard 
-          title="Completed Missions" 
-          value={kpis.completedMissions} 
-          icon={<CheckCircle2 />}
-        />
-        <DashboardKpiCard 
-          title="Knowledge Entries" 
-          value={kpis.totalKnowledge} 
-          icon={<BookOpen />}
-        />
-      </DashboardGrid>
-
-      {/* Grid Layout for Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Left Column (2 spans): Activity & Breakdowns */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          <DashboardSection title="Recent Activity" className="bg-card border rounded-lg p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Latest Missions</h3>
-                <DashboardRecentList
-                  items={recentActivity.missions.map(m => ({
-                    id: m.id,
-                    title: m.title,
-                    subtitle: `Status: ${m.status}`,
-                    href: `/missions/${m.id}`,
-                    createdAt: m.createdAt,
-                  }))}
-                  emptyTitle="No missions found"
-                  emptyDescription="Start a new mission to track progress."
-                />
-              </div>
-              
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Latest Knowledge</h3>
-                <DashboardRecentList
-                  items={recentActivity.knowledge.map(k => ({
-                    id: k.id,
-                    title: k.title,
-                    subtitle: `Layer: ${k.layer}`,
-                    href: `/knowledge/${k.id}`,
-                    createdAt: k.createdAt,
-                  }))}
-                  emptyTitle="No knowledge found"
-                  emptyDescription="Document your operations to see them here."
-                />
-              </div>
-
-            </div>
-          </DashboardSection>
-
-          {/* Placeholders for Future Extensions */}
-          <DashboardGrid className="grid-cols-1 md:grid-cols-2">
-            <DashboardSection title="Recent Notifications" className="bg-card border rounded-lg p-6">
-              {data.unreadNotifications.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">No unread notifications.</p>
-              ) : (
-                <div className="space-y-4">
-                  {data.unreadNotifications.map(n => (
-                    <div key={n.id} className="flex justify-between items-start gap-4">
-                      <div>
-                        <h4 className="text-sm font-medium">{n.title}</h4>
-                        {n.message && <p className="text-xs text-muted-foreground line-clamp-1">{n.message}</p>}
-                      </div>
-                      <span className="text-[10px] text-muted-foreground shrink-0 mt-0.5">
-                        {new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(n.createdAt))}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </DashboardSection>
-            
-            <DashboardSection title="Activity Timeline" className="bg-card border rounded-lg p-6">
-              {data.timeline.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">No recent activity.</p>
-              ) : (
-                <div className="space-y-4 relative before:absolute before:inset-0 before:ml-2 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-muted before:to-transparent">
-                  {data.timeline.map(t => (
-                    <div key={t.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                      <div className="flex items-center justify-center w-4 h-4 rounded-full border border-white bg-muted text-muted-foreground shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2" />
-                      <div className="w-[calc(100%-2rem)] md:w-[calc(50%-1.5rem)] p-2 rounded border bg-card shadow-sm">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <h4 className="font-semibold text-xs truncate">{t.title}</h4>
-                          <span className="text-[10px] text-muted-foreground shrink-0">{new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(t.timestamp))}</span>
-                        </div>
-                        {t.description && <p className="text-xs text-muted-foreground line-clamp-1">{t.description}</p>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </DashboardSection>
-          </DashboardGrid>
-
+      {/* Connection Failure Banner */}
+      {!data.isConnected && data.connectionError && (
+        <div className="p-6 border border-amber-500/30 rounded-2xl bg-amber-500/5 space-y-3">
+          <div className="flex items-center space-x-2 text-amber-400">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <h3 className="text-sm font-bold">Aura & Soul Supabase Database Not Connected</h3>
+          </div>
+          <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
+            {data.connectionError}
+          </p>
+          <Link
+            href="/integrations/aura-soul"
+            className="inline-flex items-center text-xs px-4 py-2 bg-slate-900 hover:bg-slate-800 text-amber-300 font-bold rounded-xl border border-amber-500/30 transition-colors"
+          >
+            Configure Credentials at /integrations/aura-soul →
+          </Link>
         </div>
+      )}
 
-        {/* Right Column (1 span): Analytics & Future Widgets */}
-        <div className="space-y-6">
-          
-          <DashboardSection title="Distributions" className="bg-card border rounded-lg p-6">
-            <div className="space-y-6">
-              
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wider">Missions by Status</h3>
-                {Object.keys(distributions.missionStatuses).length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No active missions.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {Object.entries(distributions.missionStatuses).map(([status, count]) => (
-                      <li key={status} className="flex justify-between items-center text-sm">
-                        <span className="capitalize">{status.replace("_", " ").toLowerCase()}</span>
-                        <span className="font-medium bg-muted px-2 py-1 rounded-md">{count}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+      {/* 8 Live Business KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* 1. Total Products */}
+        <DashboardKpiCard
+          title="Total Products"
+          metric={data.totalProducts}
+          icon={<Package className="w-5 h-5" />}
+          color="emerald"
+          subtitle="Catalog total count"
+          loading={loading}
+        />
 
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wider">Employees by Status</h3>
-                {Object.keys(distributions.employeeStatuses).length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No active employees.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {Object.entries(distributions.employeeStatuses).map(([status, count]) => (
-                      <li key={status} className="flex justify-between items-center text-sm">
-                        <span className="capitalize">{status.replace("_", " ").toLowerCase()}</span>
-                        <span className="font-medium bg-muted px-2 py-1 rounded-md">{count}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+        {/* 2. Active Products */}
+        <DashboardKpiCard
+          title="Active Products"
+          metric={data.activeProducts}
+          icon={<CheckCircle2 className="w-5 h-5" />}
+          color="green"
+          subtitle="Live on storefront"
+          loading={loading}
+        />
 
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wider">Knowledge by Layer</h3>
-                {Object.keys(distributions.knowledgeLayers).length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No active knowledge.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {Object.entries(distributions.knowledgeLayers).map(([layer, count]) => (
-                      <li key={layer} className="flex justify-between items-center text-sm">
-                        <span className="capitalize">{layer.toLowerCase()}</span>
-                        <span className="font-medium bg-muted px-2 py-1 rounded-md">{count}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              
-            </div>
-          </DashboardSection>
+        {/* 3. Featured Products */}
+        <DashboardKpiCard
+          title="Featured Products"
+          metric={data.featuredProducts}
+          icon={<Sparkles className="w-5 h-5" />}
+          color="amber"
+          subtitle="Promoted catalog items"
+          loading={loading}
+        />
 
-          {/* Placeholders for Future Extensions */}
-          <DashboardSection title="Pending Tasks" className="bg-card border rounded-lg p-6 opacity-60 border-dashed">
-            <p className="text-sm text-muted-foreground">Future integration point for pending approvals and assignments.</p>
-          </DashboardSection>
+        {/* 4. Low Stock Products */}
+        <DashboardKpiCard
+          title="Low Stock Products"
+          metric={data.lowStockProducts}
+          icon={<AlertTriangle className="w-5 h-5" />}
+          color="yellow"
+          subtitle="Stock ≤ threshold"
+          loading={loading}
+        />
 
-          <DashboardSection title="Automation Queue" className="bg-card border rounded-lg p-6 opacity-60 border-dashed">
-            <p className="text-sm text-muted-foreground">Future integration point for agentic task queues and background processing.</p>
-          </DashboardSection>
+        {/* 5. Out of Stock Products */}
+        <DashboardKpiCard
+          title="Out of Stock"
+          metric={data.outOfStockProducts}
+          icon={<AlertOctagon className="w-5 h-5" />}
+          color="rose"
+          subtitle="Stock quantity = 0"
+          loading={loading}
+        />
 
-        </div>
+        {/* 6. Total Categories */}
+        <DashboardKpiCard
+          title="Total Categories"
+          metric={data.totalCategories}
+          icon={<Layers className="w-5 h-5" />}
+          color="blue"
+          subtitle="Product taxonomies"
+          loading={loading}
+        />
+
+        {/* 7. Total Orders */}
+        <DashboardKpiCard
+          title="Total Orders"
+          metric={data.totalOrders}
+          icon={<ShoppingBag className="w-5 h-5" />}
+          color="purple"
+          subtitle="All-time recorded orders"
+          loading={loading}
+        />
+
+        {/* 8. Pending Consultations */}
+        <DashboardKpiCard
+          title="Pending Consultations"
+          metric={data.pendingConsultations}
+          icon={<Users className="w-5 h-5" />}
+          color="cyan"
+          subtitle="Unprocessed leads/requests"
+          loading={loading}
+        />
       </div>
+
+      {/* 7-Day Performance Chart */}
+      <DashboardSalesChart data={data.chartData} hasData={data.hasChartData} />
     </div>
   );
 }

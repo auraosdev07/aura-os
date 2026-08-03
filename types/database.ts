@@ -275,3 +275,226 @@ export type AiConversationUpdate = Partial<Omit<AiConversationRow, "id" | "owner
 export type AiMessageUpdate = Partial<Omit<AiMessageRow, "id" | "conversation_id" | "created_at">>;
 export type AiUsageLogUpdate = Partial<Omit<AiUsageLogRow, "id" | "owner_id" | "created_at">>;
 export type KnowledgeChunkUpdate = Partial<Omit<KnowledgeChunkRow, "id" | "owner_id" | "created_at">>;
+
+// ---------------------------------------------------------------------------
+// Persistent Memory & Conversation System Types
+// ---------------------------------------------------------------------------
+
+export interface ConversationRow {
+  id: string;
+  owner_id: string;
+  title: string;
+  summary: string | null;
+  is_archived: boolean;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface ConversationMessageRow {
+  id: string;
+  conversation_id: string;
+  role: string;
+  content: string;
+  token_count: number | null;
+  created_at: string;
+}
+
+export interface ConversationSummaryRow {
+  id: string;
+  conversation_id: string;
+  start_message_id: string | null;
+  end_message_id: string | null;
+  summary_text: string;
+  embedding: number[];
+  created_at: string;
+}
+
+export interface UserMemoryRow {
+  id: string;
+  owner_id: string;
+  organization_id: string | null;
+  type: string;
+  category: string | null;
+  content: string;
+  importance: number;
+  access_count: number;
+  last_accessed_at: string;
+  source_conversation_id: string | null;
+  embedding: number[];
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export type ConversationInsert = Omit<ConversationRow, "id" | "created_at" | "updated_at" | "deleted_at" | "summary" | "is_archived"> & {
+  id?: string;
+  title?: string;
+  summary?: string | null;
+  is_archived?: boolean;
+};
+
+export type ConversationMessageInsert = Omit<ConversationMessageRow, "id" | "created_at" | "token_count"> & {
+  id?: string;
+  token_count?: number | null;
+};
+
+export type ConversationSummaryInsert = Omit<ConversationSummaryRow, "id" | "created_at" | "start_message_id" | "end_message_id"> & {
+  id?: string;
+  start_message_id?: string | null;
+  end_message_id?: string | null;
+};
+
+export type UserMemoryInsert = Omit<UserMemoryRow, "id" | "created_at" | "updated_at" | "deleted_at" | "access_count" | "last_accessed_at" | "organization_id" | "category"> & {
+  id?: string;
+  organization_id?: string | null;
+  category?: string | null;
+  importance?: number;
+  access_count?: number;
+  last_accessed_at?: string;
+};
+
+export type ConversationUpdate = Partial<Omit<ConversationRow, "id" | "owner_id" | "created_at">>;
+export type UserMemoryUpdate = Partial<Omit<UserMemoryRow, "id" | "owner_id" | "created_at">>;
+
+// ---------------------------------------------------------------------------
+// Product Management CMS Types
+// ---------------------------------------------------------------------------
+
+export type ProductStatus = "DRAFT" | "ACTIVE" | "HIDDEN" | "ARCHIVED";
+
+export interface CategoryRow {
+  id: string;
+  owner_id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  image_url: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface CollectionRow {
+  id: string;
+  owner_id: string;
+  title: string;
+  slug: string;
+  description: string | null;
+  image_url: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface ProductRow {
+  id: string;
+  owner_id: string;
+  category_id: string | null;
+  title: string;
+  slug: string;
+  description: string | null;
+  price: number;
+  compare_at_price: number | null;
+  cost_per_item: number | null;
+  sku: string | null;
+  barcode: string | null;
+  stock_quantity: number;
+  low_stock_threshold: number;
+  track_inventory: boolean;
+  allow_backorder: boolean;
+  status: ProductStatus;
+  sort_order: number;
+  has_variants: boolean;
+  tags: string[];
+  seo_title: string | null;
+  seo_description: string | null;
+  canonical_url: string | null;
+  og_image_url: string | null;
+  robots_meta: string;
+  schema_type: string;
+  seo_keywords: string[];
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface ProductImageRow {
+  id: string;
+  product_id: string;
+  storage_path: string;
+  public_url: string;
+  alt_text: string | null;
+  caption: string | null;
+  position: number;
+  is_primary: boolean;
+  width: number | null;
+  height: number | null;
+  created_at: string;
+}
+
+export interface VariantOptionRow {
+  id: string;
+  product_id: string;
+  name: string;
+  values: string[];
+  position: number;
+  created_at: string;
+}
+
+export interface ProductVariantRow {
+  id: string;
+  product_id: string;
+  title: string;
+  options: Record<string, string>;
+  price: number;
+  compare_at_price: number | null;
+  cost_per_item: number | null;
+  sku: string | null;
+  barcode: string | null;
+  stock_quantity: number;
+  image_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InventoryLogRow {
+  id: string;
+  product_id: string;
+  variant_id: string | null;
+  before_quantity: number;
+  after_quantity: number;
+  change_quantity: number;
+  reason: string;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface UrlRedirectRow {
+  id: string;
+  owner_id: string;
+  source_path: string;
+  target_path: string;
+  status_code: number;
+  created_at: string;
+}
+
+export type CategoryInsert = Omit<CategoryRow, "id" | "created_at" | "updated_at" | "deleted_at" | "sort_order"> & {
+  id?: string;
+  sort_order?: number;
+};
+
+export type CollectionInsert = Omit<CollectionRow, "id" | "created_at" | "updated_at" | "deleted_at" | "sort_order"> & {
+  id?: string;
+  sort_order?: number;
+};
+
+export type ProductInsert = Omit<ProductRow, "id" | "created_at" | "updated_at" | "deleted_at"> & {
+  id?: string;
+};
+
+export type ProductUpdate = Partial<Omit<ProductRow, "id" | "owner_id" | "created_at">>;
+
+

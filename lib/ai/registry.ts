@@ -43,22 +43,34 @@ export class AIRegistry {
     return this.providers.has(name.toLowerCase());
   }
 
+  private activeProviderOverride?: string;
+
+  /**
+   * Set active provider dynamically at runtime.
+   */
+  public setActiveProviderName(name: string): void {
+    const targetName = name.toLowerCase();
+    if (!this.providers.has(targetName)) {
+      throw new Error(`Cannot set active provider '${name}'. Provider is not registered.`);
+    }
+    this.activeProviderOverride = targetName;
+  }
+
   /**
    * Resolve active provider name following configuration priority:
-   * 1. DB settings (future-ready extension point)
+   * 1. Runtime active provider override (setActiveProviderName)
    * 2. Environment variables (process.env.AI_PROVIDER)
    * 3. Fallback discovery (Gemini -> OpenAI)
    */
   public getActiveProviderName(): string {
-    // 1. Future DB settings check (hook)
-    // if (dbSettingProvider) return dbSettingProvider;
+    if (this.activeProviderOverride) {
+      return this.activeProviderOverride;
+    }
 
-    // 2. Environment variable configuration
     if (process.env.AI_PROVIDER) {
       return process.env.AI_PROVIDER.toLowerCase();
     }
 
-    // 3. Fallback discovery based on available keys
     if (process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
       return "gemini";
     }
@@ -66,7 +78,6 @@ export class AIRegistry {
       return "openai";
     }
 
-    // Default to gemini
     return "gemini";
   }
 

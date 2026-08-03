@@ -12,6 +12,11 @@ import type {
   StreamTextOptions,
   HealthCheckResult,
 } from "../types";
+import {
+  fetchWithGeminiFallback,
+  resolveGeminiModel,
+  DEFAULT_GEMINI_FALLBACK_MODELS,
+} from "./gemini-fallback";
 
 export class GeminiProvider implements AIProvider {
   readonly name = "gemini";
@@ -27,11 +32,7 @@ export class GeminiProvider implements AIProvider {
   }
 
   async listModels(): Promise<string[]> {
-    return [
-      "gemini-2.0-flash",
-      "gemini-1.5-flash",
-      "gemini-1.5-pro",
-    ];
+    return [...DEFAULT_GEMINI_FALLBACK_MODELS];
   }
 
   async healthCheck(): Promise<HealthCheckResult> {
@@ -53,7 +54,7 @@ export class GeminiProvider implements AIProvider {
         return {
           ok: true,
           provider: this.name,
-          message: "Gemini provider connected successfully.",
+          message: `Gemini provider connected successfully. Active model: ${resolveGeminiModel()}`,
           models: await this.listModels(),
         };
       }
@@ -97,8 +98,6 @@ export class GeminiProvider implements AIProvider {
 
   async generateText(options: GenerateTextOptions): Promise<GenerateTextResult> {
     const apiKey = this.getApiKey();
-    const model = options.model || "gemini-1.5-flash";
-
     const { contents, systemInstruction } = this.formatContents(options.messages);
 
     const bodyPayload: Record<string, unknown> = {
@@ -113,21 +112,16 @@ export class GeminiProvider implements AIProvider {
       bodyPayload.systemInstruction = systemInstruction;
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-      {
+    const { response, usedModel } = await fetchWithGeminiFallback({
+      apiKey,
+      endpointSuffix: ":generateContent",
+      fetchOptions: {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bodyPayload),
-      }
-    );
-
-    if (!response.ok) {
-      const errJson = await response.json().catch(() => ({}));
-      throw new Error(
-        errJson.error?.message || `Gemini API error: HTTP ${response.status}`
-      );
-    }
+      },
+      requestedModel: options.model,
+    });
 
     const data = await response.json();
     const candidate = data.candidates?.[0];
@@ -139,7 +133,7 @@ export class GeminiProvider implements AIProvider {
 
     return {
       text,
-      model,
+      model: usedModel,
       provider: this.name,
       usage: {
         promptTokens,
@@ -151,8 +145,6 @@ export class GeminiProvider implements AIProvider {
 
   async streamText(options: StreamTextOptions): Promise<ReadableStream<Uint8Array>> {
     const apiKey = this.getApiKey();
-    const model = options.model || "gemini-1.5-flash";
-
     const { contents, systemInstruction } = this.formatContents(options.messages);
 
     const bodyPayload: Record<string, unknown> = {
@@ -167,20 +159,19 @@ export class GeminiProvider implements AIProvider {
       bodyPayload.systemInstruction = systemInstruction;
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`,
-      {
+    const { response } = await fetchWithGeminiFallback({
+      apiKey,
+      endpointSuffix: ":streamGenerateContent?alt=sse",
+      fetchOptions: {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bodyPayload),
-      }
-    );
+      },
+      requestedModel: options.model,
+    });
 
-    if (!response.ok || !response.body) {
-      const errJson = await response.json().catch(() => ({}));
-      throw new Error(
-        errJson.error?.message || `Gemini Stream error: HTTP ${response.status}`
-      );
+    if (!response.body) {
+      throw new Error("Gemini Stream error: Response body is null");
     }
 
     const encoder = new TextEncoder();
@@ -216,7 +207,7 @@ export class GeminiProvider implements AIProvider {
                     controller.enqueue(encoder.encode(textChunk));
                   }
                 } catch {
-                  // Ignore JSON parse errors for incomplete SSE lines
+                  // Ignore parse error
                 }
               }
             }
@@ -236,7 +227,7 @@ export class GeminiProvider implements AIProvider {
                   controller.enqueue(encoder.encode(textChunk));
                 }
               } catch {
-                // Ignore parsing leftover buffer
+                // Ignore parse error
               }
             }
           }
@@ -251,8 +242,6 @@ export class GeminiProvider implements AIProvider {
 
   async generateJSON<T = unknown>(options: GenerateJSONOptions): Promise<T> {
     const apiKey = this.getApiKey();
-    const model = options.model || "gemini-1.5-flash";
-
     const { contents, systemInstruction } = this.formatContents(options.messages);
 
     const bodyPayload: Record<string, unknown> = {
@@ -267,34 +256,28 @@ export class GeminiProvider implements AIProvider {
       bodyPayload.systemInstruction = systemInstruction;
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-      {
+    const { response } = await fetchWithGeminiFallback({
+      apiKey,
+      endpointSuffix: ":generateContent",
+      fetchOptions: {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bodyPayload),
-      }
-    );
-
-    if (!response.ok) {
-      const errJson = await response.json().catch(() => ({}));
-      throw new Error(
-        errJson.error?.message || `Gemini JSON API error: HTTP ${response.status}`
-      );
-    }
+      },
+      requestedModel: options.model,
+    });
 
     const data = await response.json();
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    const jsonOutputText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
 
     try {
-      return JSON.parse(rawText) as T;
+      return JSON.parse(jsonOutputText) as T;
     } catch {
-      throw new Error(`Failed to parse Gemini JSON output: ${rawText}`);
+      throw new Error(`Failed to parse Gemini JSON output: ${jsonOutputText}`);
     }
   }
 
   async embed(text: string | string[]): Promise<number[] | number[][]> {
-    // Placeholder embedding vector (768-dimensional mock/zero vector)
     const count = Array.isArray(text) ? text.length : 1;
     const mockVector = new Array(768).fill(0);
     return count === 1 ? mockVector : new Array(count).fill(mockVector);

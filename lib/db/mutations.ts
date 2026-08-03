@@ -41,6 +41,16 @@ import type {
   NotificationUpdate,
   KnowledgeChunkRow,
   KnowledgeChunkInsert,
+  KnowledgeChunkUpdate,
+  UserMemoryRow,
+  UserMemoryInsert,
+  UserMemoryUpdate,
+  ConversationRow,
+  ConversationInsert,
+  ConversationMessageRow,
+  ConversationMessageInsert,
+  ConversationSummaryRow,
+  ConversationSummaryInsert,
 } from "@/types/database";
 
 // ---------------------------------------------------------------------------
@@ -614,3 +624,347 @@ export async function deleteKnowledgeChunksByArtifactId(
     throw error;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Persistent Memory & Conversation System Mutations
+// ---------------------------------------------------------------------------
+
+/** Create a new conversation thread. */
+export async function createConversation(
+  client: SupabaseClient,
+  data: ConversationInsert
+): Promise<ConversationRow> {
+  const { data: row, error } = await client
+    .from("conversations")
+    .insert(data)
+    .select()
+    .single();
+  if (error) throw error;
+  return row;
+}
+
+/** Append a message to a conversation thread. */
+export async function appendConversationMessage(
+  client: SupabaseClient,
+  data: ConversationMessageInsert
+): Promise<ConversationMessageRow> {
+  const { data: row, error } = await client
+    .from("conversation_messages")
+    .insert(data)
+    .select()
+    .single();
+  if (error) throw error;
+  return row;
+}
+
+/** Store a thread summary rollup. */
+export async function storeConversationSummary(
+  client: SupabaseClient,
+  data: ConversationSummaryInsert
+): Promise<ConversationSummaryRow> {
+  const { data: row, error } = await client
+    .from("conversation_summaries")
+    .insert(data)
+    .select()
+    .single();
+  if (error) throw error;
+  return row;
+}
+
+/** Insert an atomic long-term user memory. */
+export async function insertUserMemory(
+  client: SupabaseClient,
+  data: UserMemoryInsert
+): Promise<UserMemoryRow> {
+  const { data: row, error } = await client
+    .from("user_memories")
+    .insert(data)
+    .select()
+    .single();
+  if (error) throw error;
+  return row;
+}
+
+/** Update an existing user memory. */
+export async function updateUserMemory(
+  client: SupabaseClient,
+  memoryId: string,
+  ownerId: string,
+  data: UserMemoryUpdate
+): Promise<UserMemoryRow> {
+  const { data: row, error } = await client
+    .from("user_memories")
+    .update({ ...data, updated_at: new Date().toISOString() })
+    .eq("id", memoryId)
+    .eq("owner_id", ownerId)
+    .is("deleted_at", null)
+    .select()
+    .single();
+  if (error) throw error;
+  return row;
+}
+
+/** Increment memory access count and refresh last_accessed_at. */
+export async function incrementMemoryAccessCount(
+  client: SupabaseClient,
+  memoryId: string,
+  ownerId: string
+): Promise<UserMemoryRow> {
+  // 1. Read current access count
+  const { data: current, error: readErr } = await client
+    .from("user_memories")
+    .select("access_count")
+    .eq("id", memoryId)
+    .eq("owner_id", ownerId)
+    .is("deleted_at", null)
+    .single();
+
+  if (readErr) throw readErr;
+
+  const newCount = (current?.access_count ?? 0) + 1;
+
+  // 2. Update count and last_accessed_at
+  const { data: updated, error: updateErr } = await client
+    .from("user_memories")
+    .update({
+      access_count: newCount,
+      last_accessed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", memoryId)
+    .eq("owner_id", ownerId)
+    .select()
+    .single();
+
+  if (updateErr) throw updateErr;
+  return updated;
+}
+
+// ---------------------------------------------------------------------------
+// Product Management CMS Mutations
+// ---------------------------------------------------------------------------
+
+/** Create a new category. */
+export async function createCategory(
+  client: SupabaseClient,
+  data: import("@/types/database").CategoryInsert
+): Promise<import("@/types/database").CategoryRow> {
+  const { data: row, error } = await client
+    .from("categories")
+    .insert(data)
+    .select()
+    .single();
+  if (error) throw error;
+  return row;
+}
+
+/** Create a new collection. */
+export async function createCollection(
+  client: SupabaseClient,
+  data: import("@/types/database").CollectionInsert
+): Promise<import("@/types/database").CollectionRow> {
+  const { data: row, error } = await client
+    .from("collections")
+    .insert(data)
+    .select()
+    .single();
+  if (error) throw error;
+  return row;
+}
+
+/** Create a new product. */
+export async function createProduct(
+  client: SupabaseClient,
+  data: import("@/types/database").ProductInsert
+): Promise<import("@/types/database").ProductRow> {
+  const { data: row, error } = await client
+    .from("products")
+    .insert(data)
+    .select()
+    .single();
+  if (error) throw error;
+
+  // Log initial stock inventory entry
+  if (row.stock_quantity > 0) {
+    await client.from("inventory_logs").insert({
+      product_id: row.id,
+      before_quantity: 0,
+      after_quantity: row.stock_quantity,
+      change_quantity: row.stock_quantity,
+      reason: "INITIAL_STOCK",
+      created_by: row.owner_id,
+    });
+  }
+
+  return row;
+}
+
+/** Update an existing product and automatically create a 301 URL redirect if slug changes. */
+export async function updateProduct(
+  client: SupabaseClient,
+  productId: string,
+  ownerId: string,
+  data: import("@/types/database").ProductUpdate
+): Promise<import("@/types/database").ProductRow> {
+  // Fetch existing product to track slug changes and inventory changes
+  const { data: existing, error: fetchErr } = await client
+    .from("products")
+    .select("*")
+    .eq("id", productId)
+    .eq("owner_id", ownerId)
+    .single();
+
+  if (fetchErr) throw fetchErr;
+
+  const updatedData = { ...data, updated_at: new Date().toISOString() };
+
+  const { data: row, error } = await client
+    .from("products")
+    .update(updatedData)
+    .eq("id", productId)
+    .eq("owner_id", ownerId)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // 1. Slug change redirect preservation
+  if (existing.slug && data.slug && existing.slug !== data.slug) {
+    await client.from("url_redirects").upsert(
+      {
+        owner_id: ownerId,
+        source_path: `/products/${existing.slug}`,
+        target_path: `/products/${data.slug}`,
+        status_code: 301,
+      },
+      { onConflict: "source_path" }
+    );
+  }
+
+  // 2. Inventory change audit logging
+  if (typeof data.stock_quantity === "number" && data.stock_quantity !== existing.stock_quantity) {
+    await client.from("inventory_logs").insert({
+      product_id: productId,
+      before_quantity: existing.stock_quantity,
+      after_quantity: data.stock_quantity,
+      change_quantity: data.stock_quantity - existing.stock_quantity,
+      reason: "MANUAL_ADJUSTMENT",
+      created_by: ownerId,
+    });
+  }
+
+  return row;
+}
+
+/** Soft delete a product. */
+export async function softDeleteProduct(
+  client: SupabaseClient,
+  productId: string,
+  ownerId: string
+): Promise<void> {
+  const { error } = await client
+    .from("products")
+    .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq("id", productId)
+    .eq("owner_id", ownerId);
+
+  if (error) throw error;
+}
+
+/** Save/Replace normalized product images. */
+export async function upsertProductImages(
+  client: SupabaseClient,
+  productId: string,
+  images: Array<{
+    storage_path: string;
+    public_url: string;
+    alt_text?: string | null;
+    caption?: string | null;
+    position: number;
+    is_primary: boolean;
+    width?: number | null;
+    height?: number | null;
+  }>
+): Promise<import("@/types/database").ProductImageRow[]> {
+  // Delete existing images and re-insert normalized list
+  await client.from("product_images").delete().eq("product_id", productId);
+
+  if (images.length === 0) return [];
+
+  const rows = images.map((img) => ({
+    product_id: productId,
+    storage_path: img.storage_path,
+    public_url: img.public_url,
+    alt_text: img.alt_text || null,
+    caption: img.caption || null,
+    position: img.position,
+    is_primary: img.is_primary,
+    width: img.width || null,
+    height: img.height || null,
+  }));
+
+  const { data, error } = await client.from("product_images").insert(rows).select();
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Save/Replace normalized variant options. */
+export async function upsertVariantOptions(
+  client: SupabaseClient,
+  productId: string,
+  options: Array<{ name: string; values: string[]; position: number }>
+): Promise<import("@/types/database").VariantOptionRow[]> {
+  await client.from("variant_options").delete().eq("product_id", productId);
+
+  if (options.length === 0) return [];
+
+  const rows = options.map((opt) => ({
+    product_id: productId,
+    name: opt.name,
+    values: opt.values,
+    position: opt.position,
+  }));
+
+  const { data, error } = await client.from("variant_options").insert(rows).select();
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Save/Replace normalized product variants. */
+export async function upsertProductVariants(
+  client: SupabaseClient,
+  productId: string,
+  variants: Array<{
+    title: string;
+    options: Record<string, string>;
+    price: number;
+    compare_at_price?: number | null;
+    cost_per_item?: number | null;
+    sku?: string | null;
+    barcode?: string | null;
+    stock_quantity: number;
+    image_id?: string | null;
+  }>
+): Promise<import("@/types/database").ProductVariantRow[]> {
+  await client.from("product_variants").delete().eq("product_id", productId);
+
+  if (variants.length === 0) return [];
+
+  const rows = variants.map((v) => ({
+    product_id: productId,
+    title: v.title,
+    options: v.options,
+    price: v.price,
+    compare_at_price: v.compare_at_price || null,
+    cost_per_item: v.cost_per_item || null,
+    sku: v.sku || null,
+    barcode: v.barcode || null,
+    stock_quantity: v.stock_quantity,
+    image_id: v.image_id || null,
+  }));
+
+  const { data, error } = await client.from("product_variants").insert(rows).select();
+  if (error) throw error;
+  return data ?? [];
+}
+

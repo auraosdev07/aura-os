@@ -17,7 +17,13 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
+  const requestHeaders = new Headers(request.headers);
+
+  let supabaseResponse = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,7 +39,15 @@ export async function proxy(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           );
-          supabaseResponse = NextResponse.next({ request });
+
+          requestHeaders.set("cookie", request.cookies.toString());
+
+          supabaseResponse = NextResponse.next({
+            request: {
+              headers: requestHeaders,
+            },
+          });
+
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options),
           );
@@ -50,8 +64,25 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Redirect unauthenticated users trying to access dashboard routes.
-  if (!user && pathname.startsWith("/dashboard")) {
+  const adminRoutes = [
+    "/dashboard",
+    "/products",
+    "/managers",
+    "/employees",
+    "/missions",
+    "/agents",
+    "/tasks",
+    "/knowledge",
+    "/artifacts",
+    "/ai",
+    "/profile",
+    "/notifications",
+  ];
+
+  const isAdminRoute = adminRoutes.some((route) => pathname.startsWith(route));
+
+  // Redirect unauthenticated users trying to access protected routes.
+  if (!user && (isAdminRoute || pathname.startsWith("/dashboard"))) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     return NextResponse.redirect(loginUrl);

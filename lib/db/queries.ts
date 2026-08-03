@@ -24,6 +24,10 @@ import type {
   ArtifactRow,
   NotificationRow,
   KnowledgeChunkRow,
+  UserMemoryRow,
+  ConversationRow,
+  ConversationMessageRow,
+  ConversationSummaryRow,
   MissionStatus,
   EmployeeStatus,
   KnowledgeLayer,
@@ -765,3 +769,265 @@ export async function getNotificationById(
   if (error && error.code !== "PGRST116") throw error;
   return data;
 }
+
+// ---------------------------------------------------------------------------
+// Persistent Memory & Conversation System Queries
+// ---------------------------------------------------------------------------
+
+export interface UserMemoryQueryOptions {
+  type?: string;
+  limit?: number;
+  minImportance?: number;
+}
+
+/** Fetch user memories for an owner with optional filters. */
+export async function getUserMemories(
+  client: SupabaseClient,
+  ownerId: string,
+  options?: UserMemoryQueryOptions
+): Promise<UserMemoryRow[]> {
+  let query = client
+    .from("user_memories")
+    .select("*")
+    .eq("owner_id", ownerId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+
+  if (options?.type) {
+    query = query.eq("type", options.type);
+  }
+  if (options?.minImportance) {
+    query = query.gte("importance", options.minImportance);
+  }
+  if (options?.limit) {
+    query = query.limit(options.limit);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Fetch a single conversation thread by ID. */
+export async function getConversation(
+  client: SupabaseClient,
+  conversationId: string,
+  ownerId: string
+): Promise<ConversationRow | null> {
+  const { data, error } = await client
+    .from("conversations")
+    .select("*")
+    .eq("id", conversationId)
+    .eq("owner_id", ownerId)
+    .is("deleted_at", null)
+    .single();
+
+  if (error && error.code !== "PGRST116") throw error;
+  return data;
+}
+
+/** Fetch all messages in a conversation in chronological order. */
+export async function getConversationMessages(
+  client: SupabaseClient,
+  conversationId: string
+): Promise<ConversationMessageRow[]> {
+  const { data, error } = await client
+    .from("conversation_messages")
+    .select("*")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Fetch the latest conversation summary for a conversation. */
+export async function getConversationSummary(
+  client: SupabaseClient,
+  conversationId: string
+): Promise<ConversationSummaryRow | null> {
+  const { data, error } = await client
+    .from("conversation_summaries")
+    .select("*")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error && error.code !== "PGRST116") throw error;
+  return data;
+}
+
+// ---------------------------------------------------------------------------
+// Product Management CMS Queries
+// ---------------------------------------------------------------------------
+
+export interface ProductFilters {
+  status?: string;
+  categoryId?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+/** Fetch all active categories for an owner. */
+export async function getCategories(
+  client: SupabaseClient,
+  ownerId: string
+): Promise<import("@/types/database").CategoryRow[]> {
+  const { data, error } = await client
+    .from("categories")
+    .select("*")
+    .eq("owner_id", ownerId)
+    .is("deleted_at", null)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Fetch all active collections for an owner. */
+export async function getCollections(
+  client: SupabaseClient,
+  ownerId: string
+): Promise<import("@/types/database").CollectionRow[]> {
+  const { data, error } = await client
+    .from("collections")
+    .select("*")
+    .eq("owner_id", ownerId)
+    .is("deleted_at", null)
+    .order("sort_order", { ascending: true })
+    .order("title", { ascending: true });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Fetch products for an owner with optional filters. */
+export async function getProducts(
+  client: SupabaseClient,
+  ownerId: string,
+  filters?: ProductFilters
+): Promise<import("@/types/database").ProductRow[]> {
+  let query = client
+    .from("products")
+    .select("*")
+    .eq("owner_id", ownerId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+
+  if (filters?.status) {
+    query = query.eq("status", filters.status);
+  }
+  if (filters?.categoryId) {
+    query = query.eq("category_id", filters.categoryId);
+  }
+  if (filters?.search) {
+    query = query.ilike("title", `%${filters.search}%`);
+  }
+  if (filters?.limit) {
+    query = query.limit(filters.limit);
+  }
+  if (filters?.offset) {
+    query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Fetch a single product by ID with full details. */
+export async function getProductById(
+  client: SupabaseClient,
+  productId: string,
+  ownerId: string
+): Promise<import("@/types/database").ProductRow | null> {
+  const { data, error } = await client
+    .from("products")
+    .select("*")
+    .eq("id", productId)
+    .eq("owner_id", ownerId)
+    .is("deleted_at", null)
+    .single();
+
+  if (error && error.code !== "PGRST116") throw error;
+  return data;
+}
+
+/** Fetch normalized product images sorted by position. */
+export async function getProductImages(
+  client: SupabaseClient,
+  productId: string
+): Promise<import("@/types/database").ProductImageRow[]> {
+  const { data, error } = await client
+    .from("product_images")
+    .select("*")
+    .eq("product_id", productId)
+    .order("position", { ascending: true });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Fetch normalized variant options for a product. */
+export async function getVariantOptions(
+  client: SupabaseClient,
+  productId: string
+): Promise<import("@/types/database").VariantOptionRow[]> {
+  const { data, error } = await client
+    .from("variant_options")
+    .select("*")
+    .eq("product_id", productId)
+    .order("position", { ascending: true });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Fetch normalized product variants for a product. */
+export async function getProductVariants(
+  client: SupabaseClient,
+  productId: string
+): Promise<import("@/types/database").ProductVariantRow[]> {
+  const { data, error } = await client
+    .from("product_variants")
+    .select("*")
+    .eq("product_id", productId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Fetch inventory logs for a product. */
+export async function getInventoryLogs(
+  client: SupabaseClient,
+  productId: string
+): Promise<import("@/types/database").InventoryLogRow[]> {
+  const { data, error } = await client
+    .from("inventory_logs")
+    .select("*")
+    .eq("product_id", productId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Fetch URL redirects for an owner. */
+export async function getUrlRedirects(
+  client: SupabaseClient,
+  ownerId: string
+): Promise<import("@/types/database").UrlRedirectRow[]> {
+  const { data, error } = await client
+    .from("url_redirects")
+    .select("*")
+    .eq("owner_id", ownerId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data ?? [];
+}
+

@@ -39,6 +39,8 @@ export interface BatchEmbeddingResult {
   totalTokens?: number;
 }
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 export interface VectorSearchOptions {
   query: string;
   limit?: number;
@@ -46,6 +48,8 @@ export interface VectorSearchOptions {
   layer?: string;
   missionId?: string;
   ownerId?: string;
+  clientOverride?: SupabaseClient;
+  userIdOverride?: string;
 }
 
 export interface VectorSearchResult {
@@ -67,6 +71,8 @@ export interface RetrievalOptions {
   layer?: string;
   missionId?: string;
   maxTokens?: number;
+  clientOverride?: SupabaseClient;
+  userIdOverride?: string;
 }
 
 export interface RetrievedContext {
