@@ -62,7 +62,7 @@ export const NAVIGATION: NavSection[] = [
       { href: "/employees", label: "Employees", icon: Users },
       { href: "/missions", label: "Missions", icon: Crosshair },
       { href: "/agents",   label: "Agents",   icon: Bot },
-      { href: "/tasks",    label: "Tasks",    icon: CheckSquare, disabled: true },
+      { href: "/tasks",    label: "Tasks",    icon: CheckSquare },
     ],
   },
   {

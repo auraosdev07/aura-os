@@ -18,6 +18,8 @@ import {
   AlertCircle,
   Plus,
   Sparkles,
+  CheckSquare,
+  XCircle,
 } from "lucide-react";
 import {
   runAgentService,
@@ -32,12 +34,19 @@ import type {
   AgentStatus,
   AgentMemoryScope,
 } from "@/types/agent";
+import type { TaskRow, TaskEventRow } from "@/types/task";
 
 interface AgentDetailFeatureProps {
   initialDetails: FullAgentDetails;
+  agentTasks?: {
+    active: TaskRow[];
+    completed: TaskRow[];
+    failed: TaskRow[];
+    events: TaskEventRow[];
+  };
 }
 
-type TabType = "overview" | "tools" | "integrations" | "memory" | "runs" | "activity";
+type TabType = "overview" | "tasks" | "tools" | "integrations" | "memory" | "runs" | "activity";
 
 function getStatusBadge(status: AgentStatus) {
   switch (status) {
@@ -111,7 +120,7 @@ function getEventBadge(eventType: string) {
   }
 }
 
-export function AgentDetailFeature({ initialDetails }: AgentDetailFeatureProps) {
+export function AgentDetailFeature({ initialDetails, agentTasks }: AgentDetailFeatureProps) {
   const [details, setDetails] = useState<FullAgentDetails>(initialDetails);
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [loading, setLoading] = useState(false);
@@ -127,6 +136,12 @@ export function AgentDetailFeature({ initialDetails }: AgentDetailFeatureProps) 
   const memoryList = details.memory || [];
   const runsList = details.runs || [];
   const logsList = details.logs || [];
+
+  const activeTasks = agentTasks?.active || [];
+  const completedTasks = agentTasks?.completed || [];
+  const failedTasks = agentTasks?.failed || [];
+  const taskEvents = agentTasks?.events || [];
+  const totalTasks = activeTasks.length + completedTasks.length + failedTasks.length;
 
   const handleRun = async () => {
     setLoading(true);
@@ -264,6 +279,7 @@ export function AgentDetailFeature({ initialDetails }: AgentDetailFeatureProps) 
         <div className="flex items-center space-x-2 border-b border-slate-800 pb-2 overflow-x-auto text-xs font-bold">
           {[
             { id: "overview", label: "Overview", icon: Cpu },
+            { id: "tasks", label: `Assigned Tasks (${totalTasks})`, icon: CheckSquare },
             { id: "tools", label: `Tools (${agent.enabled_tools?.length ?? 0})`, icon: Wrench },
             { id: "integrations", label: `Integrations (${agent.connected_integrations?.length ?? 0})`, icon: Plug },
             { id: "memory", label: `Memory (${memoryList.length})`, icon: Database },
@@ -345,7 +361,109 @@ export function AgentDetailFeature({ initialDetails }: AgentDetailFeatureProps) 
         </div>
       )}
 
-      {/* Tab 2: Pluggable Tools */}
+      {/* Tab 2: Assigned Tasks Integration */}
+      {activeTab === "tasks" && (
+        <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-6">
+          <div>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+              <CheckSquare className="w-4 h-4 text-emerald-400" /> Assigned Operational Tasks
+            </h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Active, completed, and failed tasks orchestrated for this AI agent.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Active Tasks */}
+            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <span className="text-xs font-bold text-emerald-400 uppercase">Active Tasks</span>
+                <span className="text-xs font-mono font-bold px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded">
+                  {activeTasks.length}
+                </span>
+              </div>
+              {activeTasks.length === 0 ? (
+                <p className="text-xs text-slate-600 font-mono py-2">No active tasks</p>
+              ) : (
+                <div className="space-y-2">
+                  {activeTasks.map((t) => (
+                    <div key={t.id} className="p-3 bg-slate-900 border border-slate-800 rounded-lg space-y-1 text-xs">
+                      <span className="font-bold text-slate-200 block truncate">{t.title}</span>
+                      <div className="flex justify-between items-center text-[10px] text-slate-400">
+                        <span>{t.status}</span>
+                        <span>{t.progress}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Completed Tasks */}
+            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <span className="text-xs font-bold text-purple-400 uppercase">Completed Tasks</span>
+                <span className="text-xs font-mono font-bold px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded">
+                  {completedTasks.length}
+                </span>
+              </div>
+              {completedTasks.length === 0 ? (
+                <p className="text-xs text-slate-600 font-mono py-2">No completed tasks</p>
+              ) : (
+                <div className="space-y-2">
+                  {completedTasks.map((t) => (
+                    <div key={t.id} className="p-3 bg-slate-900 border border-slate-800 rounded-lg space-y-1 text-xs">
+                      <span className="font-bold text-slate-200 block truncate">{t.title}</span>
+                      <span className="text-[10px] text-purple-400 block font-mono">100% Done</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Failed Tasks */}
+            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <span className="text-xs font-bold text-rose-400 uppercase">Failed Tasks</span>
+                <span className="text-xs font-mono font-bold px-2 py-0.5 bg-rose-500/10 text-rose-400 rounded">
+                  {failedTasks.length}
+                </span>
+              </div>
+              {failedTasks.length === 0 ? (
+                <p className="text-xs text-slate-600 font-mono py-2">No failed tasks</p>
+              ) : (
+                <div className="space-y-2">
+                  {failedTasks.map((t) => (
+                    <div key={t.id} className="p-3 bg-slate-900 border border-slate-800 rounded-lg space-y-1 text-xs">
+                      <span className="font-bold text-rose-300 block truncate">{t.title}</span>
+                      <span className="text-[10px] text-rose-400 block font-mono">Failed</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Recent Task Events */}
+          <div className="pt-4 border-t border-slate-800 space-y-3">
+            <span className="text-xs font-bold text-slate-300 uppercase">Recent Task Events</span>
+            {taskEvents.length === 0 ? (
+              <p className="text-xs text-slate-500 font-mono">No recent task events for this agent.</p>
+            ) : (
+              <div className="space-y-2 text-xs font-mono">
+                {taskEvents.map((ev) => (
+                  <div key={ev.id} className="p-3 bg-slate-950 border border-slate-800 rounded-lg flex justify-between items-center">
+                    <span className="text-slate-200 font-sans">{ev.message}</span>
+                    <span className="text-[10px] text-slate-500">{new Date(ev.created_at).toLocaleTimeString()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab 3: Pluggable Tools */}
       {activeTab === "tools" && (
         <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-6">
           <div>
@@ -397,7 +515,7 @@ export function AgentDetailFeature({ initialDetails }: AgentDetailFeatureProps) 
         </div>
       )}
 
-      {/* Tab 3: Connected Integrations */}
+      {/* Tab 4: Connected Integrations */}
       {activeTab === "integrations" && (
         <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-6">
           <div>
@@ -431,7 +549,7 @@ export function AgentDetailFeature({ initialDetails }: AgentDetailFeatureProps) 
         </div>
       )}
 
-      {/* Tab 4: Memory */}
+      {/* Tab 5: Memory */}
       {activeTab === "memory" && (
         <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-6">
           <div className="flex items-center justify-between">
@@ -544,7 +662,7 @@ export function AgentDetailFeature({ initialDetails }: AgentDetailFeatureProps) 
         </div>
       )}
 
-      {/* Tab 5: Agent Runs */}
+      {/* Tab 6: Agent Runs */}
       {activeTab === "runs" && (
         <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-6">
           <div>
@@ -588,7 +706,7 @@ export function AgentDetailFeature({ initialDetails }: AgentDetailFeatureProps) 
         </div>
       )}
 
-      {/* Tab 6: Activity Logs */}
+      {/* Tab 7: Activity Logs */}
       {activeTab === "activity" && (
         <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-6">
           <div>
