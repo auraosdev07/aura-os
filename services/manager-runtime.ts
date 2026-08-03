@@ -9,6 +9,7 @@
  */
 
 import { getServerContext } from "@/lib/auth/get-server-context";
+import { runExecutionEngineTick } from "./execution-engine";
 import type { TaskRow } from "@/types/task";
 import type { AgentRow } from "@/types/agent";
 
@@ -217,6 +218,15 @@ export async function runManagerRuntimeTick(): Promise<ManagerTickSummary> {
     }
 
     const remainingQueuedCount = unassignedTasks.length - matches.length;
+
+    // Automatically trigger Execution Engine tick for newly assigned tasks
+    if (matches.length > 0) {
+      try {
+        await runExecutionEngineTick();
+      } catch (execErr) {
+        console.error("[EXECUTION ENGINE AUTOMATIC TICK ERROR]:", execErr);
+      }
+    }
 
     return {
       processedTasks: unassignedTasks.length,

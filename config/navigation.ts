@@ -12,6 +12,7 @@ import {
   CheckSquare,
   BookOpen,
   FolderOpen,
+  Database,
   Settings,
   User,
   Users,
@@ -70,6 +71,7 @@ export const NAVIGATION: NavSection[] = [
     items: [
       { href: "/knowledge", label: "Knowledge", icon: BookOpen },
       { href: "/artifacts", label: "Artifacts", icon: FolderOpen },
+      { href: "/memory",    label: "Memory",    icon: Database },
     ],
   },
   {

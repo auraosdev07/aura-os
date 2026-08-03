@@ -19,7 +19,8 @@ import {
   Plus,
   Sparkles,
   CheckSquare,
-  XCircle,
+  Search,
+  Trash2,
 } from "lucide-react";
 import {
   runAgentService,
@@ -28,6 +29,7 @@ import {
   toggleAgentToolService,
   writeAgentMemoryService,
 } from "@/services/agent";
+import { deleteMemory } from "@/services/memory";
 import { DEFAULT_PLUGGABLE_TOOLS } from "@/types/agent";
 import type {
   FullAgentDetails,
@@ -125,17 +127,30 @@ export function AgentDetailFeature({ initialDetails, agentTasks }: AgentDetailFe
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [loading, setLoading] = useState(false);
 
-  // New Memory Modal State
+  // New Memory Modal & Search/Filter State
   const [showMemoryModal, setShowMemoryModal] = useState(false);
   const [memKey, setMemKey] = useState("");
   const [memVal, setMemVal] = useState("");
   const [memScope, setMemScope] = useState<AgentMemoryScope>("private");
   const [savingMemory, setSavingMemory] = useState(false);
+  const [memSearch, setMemSearch] = useState("");
+  const [memFilterScope, setMemFilterScope] = useState<"ALL" | "private" | "shared">("ALL");
 
   const agent = details.agent;
   const memoryList = details.memory || [];
   const runsList = details.runs || [];
   const logsList = details.logs || [];
+
+  const filteredAgentMemories = memoryList.filter((m) => {
+    if (memFilterScope !== "ALL" && m.scope !== memFilterScope) return false;
+    if (memSearch.trim()) {
+      const q = memSearch.toLowerCase();
+      const matchKey = m.key.toLowerCase().includes(q);
+      const matchVal = JSON.stringify(m.value).toLowerCase().includes(q);
+      if (!matchKey && !matchVal) return false;
+    }
+    return true;
+  });
 
   const activeTasks = agentTasks?.active || [];
   const completedTasks = agentTasks?.completed || [];
@@ -552,50 +567,95 @@ export function AgentDetailFeature({ initialDetails, agentTasks }: AgentDetailFe
       {/* Tab 5: Memory */}
       {activeTab === "memory" && (
         <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h2 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
-                <Database className="w-4 h-4 text-blue-400" /> Agent Persistent Memory
+                <Database className="w-4 h-4 text-blue-400" /> Agent Persistent Memory System
               </h2>
               <p className="text-xs text-slate-400 mt-1">
-                Supports Private Scope (agent-isolated) and Shared Scope (accessible across agents).
+                Private Scope is agent-isolated. Shared Scope is accessible across all agents during task execution.
               </p>
             </div>
 
             <button
               onClick={() => setShowMemoryModal(true)}
-              className="text-xs px-3.5 py-2 bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold rounded-xl transition-colors flex items-center space-x-1.5"
+              className="text-xs px-3.5 py-2 bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold rounded-xl transition-colors flex items-center space-x-1.5 self-start sm:self-auto"
             >
               <Plus className="w-4 h-4" />
               <span>Add Memory</span>
             </button>
           </div>
 
-          {memoryList.length === 0 ? (
+          {/* Search & Scope Filter Toolbar */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-slate-950 border border-slate-800 rounded-xl">
+            <div className="relative w-full sm:w-72">
+              <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search memory key or payload..."
+                value={memSearch}
+                onChange={(e) => setMemSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2 w-full sm:w-auto">
+              <span className="text-[10px] font-mono text-slate-500 uppercase">Scope:</span>
+              <select
+                value={memFilterScope}
+                onChange={(e) => setMemFilterScope(e.target.value as "ALL" | "private" | "shared")}
+                className="p-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-300 font-mono"
+              >
+                <option value="ALL">All Scopes</option>
+                <option value="private">Private Only</option>
+                <option value="shared">Shared Only</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Memory List */}
+          {filteredAgentMemories.length === 0 ? (
             <div className="p-8 text-center text-xs text-slate-500 border border-slate-800 rounded-xl">
-              No memory entries saved yet. Click &quot;Add Memory&quot; to write key-value pairs.
+              No memory entries match active search or scope criteria. Click &quot;Add Memory&quot; to save key-value pairs.
             </div>
           ) : (
             <div className="space-y-3">
-              {memoryList.map((mem) => (
+              {filteredAgentMemories.map((mem) => (
                 <div
                   key={mem.id}
-                  className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-xs"
+                  className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-xs group hover:border-slate-700 transition-colors"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-mono font-bold text-slate-200">{mem.key}</span>
-                    <span
-                      className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold uppercase ${
-                        mem.scope === "shared"
-                          ? "bg-purple-500/10 text-purple-400 border border-purple-500/30"
-                          : "bg-blue-500/10 text-blue-400 border border-blue-500/30"
-                      }`}
-                    >
-                      {mem.scope}
-                    </span>
+                    <span className="font-mono font-bold text-slate-100 text-xs">{mem.key}</span>
+                    <div className="flex items-center space-x-2">
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold uppercase ${
+                          mem.scope === "shared"
+                            ? "bg-purple-500/10 text-purple-400 border border-purple-500/30"
+                            : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                        }`}
+                      >
+                        {mem.scope} scope
+                      </span>
+                      <button
+                        onClick={async () => {
+                          if (confirm("Delete this memory entry?")) {
+                            await deleteMemory(mem.id);
+                            setDetails((prev) => ({
+                              ...prev,
+                              memory: prev.memory.filter((m) => m.id !== mem.id),
+                            }));
+                          }
+                        }}
+                        className="text-slate-500 hover:text-rose-400 transition-colors p-1"
+                        title="Delete Memory"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                  <pre className="p-2.5 rounded bg-slate-900 font-mono text-[11px] text-slate-300 overflow-x-auto">
-                    {JSON.stringify(mem.value, null, 2)}
+                  <pre className="p-3 rounded-lg bg-slate-900 border border-slate-800/60 font-mono text-[11px] text-slate-300 overflow-x-auto max-h-36 leading-relaxed">
+                    {typeof mem.value === "object" ? JSON.stringify(mem.value, null, 2) : String(mem.value)}
                   </pre>
                 </div>
               ))}
@@ -615,33 +675,34 @@ export function AgentDetailFeature({ initialDetails, agentTasks }: AgentDetailFe
                 <select
                   value={memScope}
                   onChange={(e) => setMemScope(e.target.value as AgentMemoryScope)}
-                  className="w-full p-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-200"
+                  className="w-full p-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 font-mono"
                 >
                   <option value="private">Private (Only this agent)</option>
-                  <option value="shared">Shared (All agents)</option>
+                  <option value="shared">Shared (Accessible across all agents)</option>
                 </select>
 
-                <label className="block text-slate-400 font-semibold pt-2">Memory Key</label>
+                <label className="block text-slate-400 font-semibold pt-2">Memory Key *</label>
                 <input
                   type="text"
-                  placeholder="e.g. preferred_seo_keywords"
+                  placeholder="e.g. preferred_seo_style"
                   value={memKey}
                   onChange={(e) => setMemKey(e.target.value)}
                   className="w-full p-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 font-mono"
                   required
                 />
 
-                <label className="block text-slate-400 font-semibold pt-2">Value (Text or JSON)</label>
+                <label className="block text-slate-400 font-semibold pt-2">Value Payload (Text or JSON) *</label>
                 <textarea
                   rows={3}
-                  placeholder='e.g. {"target": "crystal jewelry"}'
+                  placeholder='e.g. {"tone": "premium", "keywords": ["healing", "bracelet"]}'
                   value={memVal}
                   onChange={(e) => setMemVal(e.target.value)}
-                  className="w-full p-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 font-mono"
+                  className="w-full p-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 font-mono text-[11px]"
+                  required
                 />
               </div>
 
-              <div className="flex items-center justify-end space-x-2 pt-2">
+              <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowMemoryModal(false)}
