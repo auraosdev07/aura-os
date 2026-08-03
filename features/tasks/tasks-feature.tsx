@@ -14,6 +14,7 @@ import { TasksListView } from "./tasks-list-view";
 import { TaskDrawer } from "./task-drawer";
 import { CreateTaskModal } from "./create-task-modal";
 import { getTasks, startTask, completeTask } from "@/services/task";
+import { runManagerRuntimeTick } from "@/services/manager-runtime";
 import type { TaskRow } from "@/types/task";
 import type { AgentRow } from "@/types/agent";
 
@@ -25,6 +26,7 @@ interface TasksFeatureProps {
 export function TasksFeature({ initialTasks, agents }: TasksFeatureProps) {
   const [tasks, setTasks] = useState<TaskRow[]>(initialTasks);
   const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
+  const [ticking, setTicking] = useState(false);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -44,6 +46,18 @@ export function TasksFeature({ initialTasks, agents }: TasksFeatureProps) {
       console.error(err);
     }
   }, []);
+
+  const handleRunManagerTick = async () => {
+    setTicking(true);
+    try {
+      await runManagerRuntimeTick();
+      await refreshTasks();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setTicking(false);
+    }
+  };
 
   const handleStartTask = async (taskId: string) => {
     try {
@@ -96,13 +110,25 @@ export function TasksFeature({ initialTasks, agents }: TasksFeatureProps) {
           </p>
         </div>
 
-        {/* Create Task Trigger */}
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center gap-2 text-xs px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" /> Create Task
-        </button>
+        {/* Actions */}
+        <div className="flex items-center space-x-3 self-start sm:self-auto">
+          <button
+            onClick={handleRunManagerTick}
+            disabled={ticking}
+            className="inline-flex items-center gap-2 text-xs px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold rounded-xl border border-slate-700 transition-all"
+            title="Scan CREATED/QUEUED tasks & IDLE agents to auto-assign by role"
+          >
+            <Radio className={`w-4 h-4 ${ticking ? "animate-spin text-amber-400" : "text-emerald-400"}`} />
+            <span>{ticking ? "Orchestrating..." : "Run Manager Tick"}</span>
+          </button>
+
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="inline-flex items-center gap-2 text-xs px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all"
+          >
+            <Plus className="w-4 h-4" /> Create Task
+          </button>
+        </div>
       </div>
 
       {/* Toolbar: Search, Filters, View Switcher */}

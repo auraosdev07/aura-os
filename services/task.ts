@@ -9,6 +9,7 @@
  */
 
 import { getServerContext } from "@/lib/auth/get-server-context";
+import { runManagerRuntimeTick } from "./manager-runtime";
 import type { AgentRow } from "@/types/agent";
 import type {
   TaskRow,
@@ -132,6 +133,7 @@ export async function getTaskById(taskId: string): Promise<FullTaskDetails | nul
 
 /**
  * Creates a new task and logs initial CREATED task event.
+ * Automatically triggers Manager Runtime tick for role-based agent matching if unassigned.
  */
 export async function createTask(payload: CreateTaskPayload): Promise<TaskRow> {
   const { supabase, user } = await getServerContext();
@@ -176,12 +178,18 @@ export async function createTask(payload: CreateTaskPayload): Promise<TaskRow> {
         agent_id: createdTask.assigned_agent_id,
         role: "PRIMARY",
       });
+    } else {
+      // Trigger Manager Runtime tick for automatic role matching
+      await runManagerRuntimeTick();
     }
   } catch {
     // Ignore if sub-tables missing
   }
 
-  return createdTask;
+  // Refetch latest task state in case manager runtime assigned it
+  const { data: latest } = await supabase.from("tasks").select("*").eq("id", createdTask.id).single();
+
+  return (latest as TaskRow) || createdTask;
 }
 
 /**
