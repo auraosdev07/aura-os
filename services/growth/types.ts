@@ -94,3 +94,90 @@ export interface DailyCEOBriefDTO {
   priorityList: string[];
   createdAt?: string;
 }
+
+/* ── Phase 6.1 Real-Time Collection Engine Types ─────────── */
+
+export type ScheduledJobStatus = "IDLE" | "RUNNING" | "FAILED" | "DISABLED";
+
+export interface ScheduledJobDTO {
+  id: string;
+  providerId: string;
+  cronSchedule: string;
+  lastRunAt?: string;
+  nextRunAt: string;
+  status: ScheduledJobStatus;
+  retryCount: number;
+}
+
+export interface JobRunDTO {
+  id?: string;
+  jobId: string;
+  status: "SUCCESS" | "FAILED";
+  itemsProcessed: number;
+  errorMessage?: string;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+export interface TrendHistoryDTO {
+  id?: string;
+  keyword: string;
+  category: string;
+  providerId: string;
+  searchVolumeIndex: number;
+  growthVelocity: number;
+  recordedAt: string;
+}
+
+export type TrendAlertSeverity = "INFO" | "WARNING" | "CRITICAL";
+
+export type TrendAlertType =
+  | "TREND_SPIKE"
+  | "TREND_DROP"
+  | "COMPETITOR_CHANGE"
+  | "SEASONAL_OPPORTUNITY"
+  | "KEYWORD_MOVEMENT"
+  | "PROVIDER_FAILURE";
+
+export interface TrendAlertDTO {
+  id?: string;
+  type: TrendAlertType;
+  severity: TrendAlertSeverity;
+  title: string;
+  description: string;
+  metadata?: Record<string, unknown>;
+  isAcknowledged: boolean;
+  createdAt?: string;
+}
+
+export interface ProviderHealthDTO {
+  providerId: string;
+  status: "HEALTHY" | "DEGRADED" | "DOWN";
+  latencyMs: number;
+  successRate: number;
+  lastCheckedAt?: string;
+}
+
+export type ConfidenceLevel = "LOW" | "MEDIUM" | "HIGH";
+
+export interface TrendConfidenceDTO {
+  id?: string;
+  keyword: string;
+  confidenceLevel: ConfidenceLevel;
+  agreeingProvidersCount: number;
+  reasoning: string;
+  evaluatedAt?: string;
+}
+
+export type QueueOpportunityStatus = "NEW" | "QUEUED" | "ACKNOWLEDGED" | "COMPLETED";
+
+export interface QueuedOpportunityDTO {
+  id?: string;
+  title: string;
+  type: string;
+  targetKeyword?: string;
+  businessValueScore: number;
+  status: QueueOpportunityStatus;
+  createdAt?: string;
+}
+
