@@ -21,7 +21,10 @@ import {
   CheckSquare,
   Search,
   Trash2,
+  GitFork,
+  MessageSquare,
 } from "lucide-react";
+import { AcpMessagesTab } from "@/features/acp/acp-messages-tab";
 import {
   runAgentService,
   pauseAgentService,
@@ -30,11 +33,12 @@ import {
   writeAgentMemoryService,
 } from "@/services/agent";
 import { deleteMemory } from "@/services/memory";
-import { DEFAULT_PLUGGABLE_TOOLS } from "@/types/agent";
+import { listTools } from "@/services/tools/tool-registry";
 import type {
   FullAgentDetails,
   AgentStatus,
   AgentMemoryScope,
+  AgentRow,
 } from "@/types/agent";
 import type { TaskRow, TaskEventRow } from "@/types/task";
 
@@ -46,9 +50,10 @@ interface AgentDetailFeatureProps {
     failed: TaskRow[];
     events: TaskEventRow[];
   };
+  allAgents?: AgentRow[];
 }
 
-type TabType = "overview" | "tasks" | "tools" | "integrations" | "memory" | "runs" | "activity";
+type TabType = "overview" | "tasks" | "tools" | "integrations" | "memory" | "runs" | "activity" | "messages";
 
 function getStatusBadge(status: AgentStatus) {
   switch (status) {
@@ -122,7 +127,11 @@ function getEventBadge(eventType: string) {
   }
 }
 
-export function AgentDetailFeature({ initialDetails, agentTasks }: AgentDetailFeatureProps) {
+export function AgentDetailFeature({
+  initialDetails,
+  agentTasks,
+  allAgents = [],
+}: AgentDetailFeatureProps) {
   const [details, setDetails] = useState<FullAgentDetails>(initialDetails);
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [loading, setLoading] = useState(false);
@@ -135,6 +144,10 @@ export function AgentDetailFeature({ initialDetails, agentTasks }: AgentDetailFe
   const [savingMemory, setSavingMemory] = useState(false);
   const [memSearch, setMemSearch] = useState("");
   const [memFilterScope, setMemFilterScope] = useState<"ALL" | "private" | "shared">("ALL");
+
+  // Tools Search & Category Filter State
+  const [toolSearch, setToolSearch] = useState("");
+  const [toolCategoryFilter, setToolCategoryFilter] = useState("ALL");
 
   const agent = details.agent;
   const memoryList = details.memory || [];
@@ -299,6 +312,7 @@ export function AgentDetailFeature({ initialDetails, agentTasks }: AgentDetailFe
             { id: "integrations", label: `Integrations (${agent.connected_integrations?.length ?? 0})`, icon: Plug },
             { id: "memory", label: `Memory (${memoryList.length})`, icon: Database },
             { id: "runs", label: `Runs (${runsList.length})`, icon: Radio },
+            { id: "messages", label: "Messages / ACP", icon: MessageSquare },
             { id: "activity", label: `Activity Logs (${logsList.length})`, icon: Clock },
           ].map((t) => {
             const Icon = t.icon;
@@ -459,6 +473,41 @@ export function AgentDetailFeature({ initialDetails, agentTasks }: AgentDetailFe
             </div>
           </div>
 
+          {/* Subtask Delegations Summary */}
+          <div className="pt-4 border-t border-slate-800 space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-purple-300 flex items-center gap-1.5">
+              <GitFork className="w-4 h-4 text-purple-400" /> Multi-Agent Subtask Delegations
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              {/* Delegated Tasks */}
+              <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span className="font-bold text-slate-200">Tasks Delegated To Others</span>
+                  <span className="text-[10px] font-mono text-purple-400 font-bold px-2 py-0.5 bg-purple-500/10 rounded border border-purple-500/30">
+                    DELEGATOR ROLE
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Subtasks spawned by {agent.name} to delegate workload across specialized agent runtimes.
+                </p>
+              </div>
+
+              {/* Received Subtasks */}
+              <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span className="font-bold text-slate-200">Subtasks Assigned To This Agent</span>
+                  <span className="text-[10px] font-mono text-blue-400 font-bold px-2 py-0.5 bg-blue-500/10 rounded border border-blue-500/30">
+                    EXECUTOR ROLE
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Subtasks assigned to {agent.name} from other orchestrating agents.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Recent Task Events */}
           <div className="pt-4 border-t border-slate-800 space-y-3">
             <span className="text-xs font-bold text-slate-300 uppercase">Recent Task Events</span>
@@ -481,51 +530,96 @@ export function AgentDetailFeature({ initialDetails, agentTasks }: AgentDetailFe
       {/* Tab 3: Pluggable Tools */}
       {activeTab === "tools" && (
         <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-6">
-          <div>
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
-              <Wrench className="w-4 h-4 text-amber-400" /> Pluggable Tool Architecture
-            </h2>
-            <p className="text-xs text-slate-400 mt-1">
-              Attach or detach tools dynamically. Future LLMs (OpenAI, Claude, Gemini, MCP) can invoke any attached tool.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                <Wrench className="w-4 h-4 text-amber-400" /> Pluggable Tool Architecture & Assignment
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                Attach or detach tools dynamically. Every attached tool is exposed to the AI execution runtime.
+              </p>
+            </div>
           </div>
 
+          {/* Search & Category Filter Toolbar */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-slate-950 border border-slate-800 rounded-xl">
+            <div className="relative w-full sm:w-72">
+              <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search tools by name or description..."
+                value={toolSearch}
+                onChange={(e) => setToolSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-amber-500 font-sans"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2 w-full sm:w-auto">
+              <span className="text-[10px] font-mono text-slate-500 uppercase">Category:</span>
+              <select
+                value={toolCategoryFilter}
+                onChange={(e) => setToolCategoryFilter(e.target.value)}
+                className="p-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-300 font-mono"
+              >
+                <option value="ALL">All Categories</option>
+                <option value="System">System</option>
+                <option value="Database">Database</option>
+                <option value="Search">Search</option>
+                <option value="Content">Content</option>
+                <option value="Commerce">Commerce</option>
+                <option value="Communication">Communication</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Tools Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {DEFAULT_PLUGGABLE_TOOLS.map((tool) => {
-              const isEnabled = (agent.enabled_tools || []).includes(tool.name);
+            {listTools()
+              .filter((tool) => {
+                if (toolCategoryFilter !== "ALL" && tool.category !== toolCategoryFilter) return false;
+                if (toolSearch.trim()) {
+                  const q = toolSearch.toLowerCase();
+                  const matchName = tool.name.toLowerCase().includes(q);
+                  const matchDesc = tool.description.toLowerCase().includes(q);
+                  if (!matchName && !matchDesc) return false;
+                }
+                return true;
+              })
+              .map((tool) => {
+                const isEnabled = (agent.enabled_tools || []).includes(tool.name);
 
-              return (
-                <div
-                  key={tool.name}
-                  className={`p-4 rounded-xl border transition-all flex items-start justify-between gap-4 ${
-                    isEnabled
-                      ? "bg-slate-950 border-emerald-500/40"
-                      : "bg-slate-950/40 border-slate-800 opacity-60"
-                  }`}
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-bold text-slate-100">{tool.name}</span>
-                      <span className="text-[10px] px-2 py-0.5 bg-slate-800 text-slate-400 font-mono rounded uppercase">
-                        {tool.category}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-400">{tool.description}</p>
-                  </div>
-
-                  <button
-                    onClick={() => handleToggleTool(tool.name, !isEnabled)}
-                    className={`text-xs px-3 py-1.5 font-bold rounded-xl border transition-colors ${
+                return (
+                  <div
+                    key={tool.id}
+                    className={`p-4 rounded-xl border transition-all flex items-start justify-between gap-4 ${
                       isEnabled
-                        ? "bg-emerald-500/10 hover:bg-rose-500/10 text-emerald-400 hover:text-rose-400 border-emerald-500/30 hover:border-rose-500/30"
-                        : "bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700"
+                        ? "bg-slate-950 border-emerald-500/40"
+                        : "bg-slate-950/40 border-slate-800 opacity-60"
                     }`}
                   >
-                    {isEnabled ? "Attached" : "Attach"}
-                  </button>
-                </div>
-              );
-            })}
+                    <div className="space-y-1">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-bold text-slate-100">{tool.name}</span>
+                        <span className="text-[10px] px-2 py-0.5 bg-slate-800 text-amber-400 font-mono rounded uppercase">
+                          {tool.category}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400">{tool.description}</p>
+                    </div>
+
+                    <button
+                      onClick={() => handleToggleTool(tool.name, !isEnabled)}
+                      className={`text-xs px-3 py-1.5 font-bold rounded-xl border transition-colors shrink-0 ${
+                        isEnabled
+                          ? "bg-emerald-500/10 hover:bg-rose-500/10 text-emerald-400 hover:text-rose-400 border-emerald-500/30 hover:border-rose-500/30"
+                          : "bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700"
+                      }`}
+                    >
+                      {isEnabled ? "Attached" : "Attach"}
+                    </button>
+                  </div>
+                );
+              })}
           </div>
         </div>
       )}
@@ -741,27 +835,46 @@ export function AgentDetailFeature({ initialDetails, agentTasks }: AgentDetailFe
             </div>
           ) : (
             <div className="space-y-3 font-mono text-xs">
-              {runsList.map((run) => (
-                <div
-                  key={run.id}
-                  className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      {getEventBadge(run.status)}
-                      <span className="text-slate-400 text-[11px]">
-                        {new Date(run.created_at).toLocaleString()}
+              {runsList.map((run) => {
+                const stages: string[] = ["Planning", "Tool Calling", "Reasoning", "Writing", "Memory", "Completed"];
+
+                return (
+                  <div
+                    key={run.id}
+                    className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        {getEventBadge(run.status)}
+                        <span className="text-slate-400 text-[11px]">
+                          {new Date(run.created_at).toLocaleString()}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-500">
+                        Duration: {run.duration_ms}ms
                       </span>
                     </div>
-                    <span className="text-[10px] text-slate-500">
-                      Duration: {run.duration_ms}ms
-                    </span>
+
+                    {/* Execution Engine v2 Stages Progress */}
+                    <div className="flex items-center space-x-1.5 overflow-x-auto py-1">
+                      {stages.map((st, idx) => (
+                        <div key={st} className="flex items-center space-x-1">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                            {st}
+                          </span>
+                          {idx < stages.length - 1 && (
+                            <span className="text-slate-600 font-sans text-xs">→</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    <p className="text-slate-300 font-sans text-xs">
+                      {run.prompt || "Execution run triggered."}
+                    </p>
                   </div>
-                  <p className="text-slate-300 font-sans text-xs">
-                    {run.prompt || "Execution run triggered."}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -813,6 +926,11 @@ export function AgentDetailFeature({ initialDetails, agentTasks }: AgentDetailFe
             </div>
           )}
         </div>
+      )}
+
+      {/* Tab 8: Messages / ACP */}
+      {activeTab === "messages" && (
+        <AcpMessagesTab agentId={agent.id} allAgents={allAgents} />
       )}
     </div>
   );

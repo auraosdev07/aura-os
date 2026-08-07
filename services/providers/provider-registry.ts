@@ -11,13 +11,19 @@ import { BaseProvider } from "./base-provider";
 import { OpenAIProvider } from "./openai-provider";
 import { GeminiProvider } from "./gemini-provider";
 import { ClaudeProvider } from "./claude-provider";
+import { GroqProvider } from "./groq-provider";
+import { OpenRouterProvider } from "./openrouter-provider";
+import { GitHubProvider } from "./github-provider";
 
 // Internal singleton registry map
 const registry = new Map<string, BaseProvider>();
 
 // Register built-in providers
-registry.set("OPENAI", new OpenAIProvider());
 registry.set("GEMINI", new GeminiProvider());
+registry.set("GROQ", new GroqProvider());
+registry.set("OPENROUTER", new OpenRouterProvider());
+registry.set("GITHUB", new GitHubProvider());
+registry.set("OPENAI", new OpenAIProvider());
 registry.set("CLAUDE", new ClaudeProvider());
 
 /**

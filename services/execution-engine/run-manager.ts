@@ -124,23 +124,23 @@ export async function createAndTransitionRun(params: CreateRunParams): Promise<s
     },
   });
 
-  // 7. Save mock output artifact
-  await supabase.from("task_artifacts").insert({
-    task_id: params.taskId,
-    title: "Execution Preview",
-    artifact_type: "preview",
-    content_or_url: providerResponse.success
-      ? providerResponse.output
-      : "Execution Engine initialized successfully.\nWaiting for AI Provider.",
-    metadata: {
-      generatedAt: now,
-      runId,
-      agentId: params.agentId,
-      provider: provider.getProviderName(),
-      model: providerResponse.model,
-      usage: providerResponse.usage,
-    },
-  });
+  // 7. Save output artifact if provider response succeeded with real output
+  if (providerResponse.success && providerResponse.output) {
+    await supabase.from("task_artifacts").insert({
+      task_id: params.taskId,
+      title: "Execution Deliverable Preview",
+      artifact_type: "preview",
+      content_or_url: providerResponse.output,
+      metadata: {
+        generatedAt: now,
+        runId,
+        agentId: params.agentId,
+        provider: provider.getProviderName(),
+        model: providerResponse.model,
+        usage: providerResponse.usage,
+      },
+    });
+  }
 
   return runId;
 }

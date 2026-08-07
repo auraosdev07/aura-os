@@ -88,10 +88,22 @@ ALTER TABLE public.agent_runs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.agent_logs ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies (Allow manage access for owner or service role)
+DROP POLICY IF EXISTS "Users can manage their own agents" ON public.agents;
+DROP POLICY IF EXISTS "Manage agents" ON public.agents;
 CREATE POLICY "Manage agents" ON public.agents FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Users can manage tools of their own agents" ON public.agent_tools;
+DROP POLICY IF EXISTS "Manage agent tools" ON public.agent_tools;
 CREATE POLICY "Manage agent tools" ON public.agent_tools FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Users can manage memory of their own agents or shared memory" ON public.agent_memory;
+DROP POLICY IF EXISTS "Manage agent memory" ON public.agent_memory;
 CREATE POLICY "Manage agent memory" ON public.agent_memory FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Manage agent runs" ON public.agent_runs;
 CREATE POLICY "Manage agent runs" ON public.agent_runs FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Manage agent logs" ON public.agent_logs;
 CREATE POLICY "Manage agent logs" ON public.agent_logs FOR ALL USING (true) WITH CHECK (true);
 
 -- Permissions

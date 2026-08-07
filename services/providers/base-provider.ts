@@ -3,13 +3,26 @@
  *
  * Aura OS AI Provider Interface (Abstract Base)
  * Every provider (OpenAI, Gemini, Claude, Ollama, OpenRouter)
- * must implement this interface. The Execution Engine never
- * references concrete providers — only this interface.
+ * must implement this interface. Supports multi-turn execution loops
+ * and tool-calling requests (CALL_TOOL vs FINAL_RESPONSE).
  */
+
+export interface ToolCallRequest {
+  toolId: string;
+  input: Record<string, unknown>;
+}
+
+export interface ConversationTurn {
+  role: "user" | "assistant" | "tool";
+  content: string;
+  toolCall?: ToolCallRequest;
+  toolResult?: Record<string, unknown> | string;
+}
 
 export interface PromptInput {
   systemPrompt: string;
   userPrompt: string;
+  history?: ConversationTurn[];
   model?: string;
   temperature?: number;
   maxTokens?: number;
@@ -18,6 +31,8 @@ export interface PromptInput {
 export interface ProviderResponse {
   success: boolean;
   output: string;
+  responseType: "FINAL_RESPONSE" | "CALL_TOOL";
+  toolCall?: ToolCallRequest;
   usage: {
     promptTokens: number;
     completionTokens: number;

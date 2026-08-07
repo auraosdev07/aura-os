@@ -55,21 +55,25 @@ ALTER TABLE public.agent_memory ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.agent_activity ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
+DROP POLICY IF EXISTS "Users can manage their own agents" ON public.agents;
 CREATE POLICY "Users can manage their own agents"
   ON public.agents FOR ALL
   USING (owner_id = auth.uid())
   WITH CHECK (owner_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can manage tools of their own agents" ON public.agent_tools;
 CREATE POLICY "Users can manage tools of their own agents"
   ON public.agent_tools FOR ALL
   USING (agent_id IN (SELECT id FROM public.agents WHERE owner_id = auth.uid()))
   WITH CHECK (agent_id IN (SELECT id FROM public.agents WHERE owner_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Users can manage memory of their own agents or shared memory" ON public.agent_memory;
 CREATE POLICY "Users can manage memory of their own agents or shared memory"
   ON public.agent_memory FOR ALL
   USING (owner_id = auth.uid() OR scope = 'shared')
   WITH CHECK (owner_id = auth.uid() OR scope = 'shared');
 
+DROP POLICY IF EXISTS "Users can manage activity of their own agents" ON public.agent_activity;
 CREATE POLICY "Users can manage activity of their own agents"
   ON public.agent_activity FOR ALL
   USING (agent_id IN (SELECT id FROM public.agents WHERE owner_id = auth.uid()))

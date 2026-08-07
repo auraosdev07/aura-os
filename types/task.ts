@@ -69,6 +69,43 @@ export interface TaskArtifactRow {
   created_at: string;
 }
 
+export interface TaskDependencyRow {
+  id: string;
+  parent_task_id: string;
+  child_task_id: string;
+  created_by_agent: string | null;
+  dependency_type: string;
+  status: "PENDING" | "SATISFIED";
+  created_at: string;
+  parent_task?: TaskRow | null;
+  child_task?: TaskRow | null;
+  agent?: AgentRow | null;
+}
+
+export interface TaskSubtaskRow {
+  id: string;
+  parent_task_id: string;
+  child_task_id: string;
+  dependency_task_id: string | null;
+  execution_order: number;
+  created_at: string;
+  parent_task?: TaskRow | null;
+  child_task?: TaskRow | null;
+  dependency_task?: TaskRow | null;
+}
+
+export interface MergedOutputRow {
+  id: string;
+  parent_task_id: string;
+  title: string;
+  summary: string | null;
+  merged_content: string;
+  child_task_ids: string[];
+  artifacts_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface FullTaskDetails {
   task: TaskRow;
   assignedAgent: AgentRow | null;

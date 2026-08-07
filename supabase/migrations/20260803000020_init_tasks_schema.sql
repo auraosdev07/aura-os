@@ -69,9 +69,16 @@ ALTER TABLE public.task_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.task_artifacts ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
+DROP POLICY IF EXISTS "Manage tasks" ON public.tasks;
 CREATE POLICY "Manage tasks" ON public.tasks FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Manage task assignments" ON public.task_assignments;
 CREATE POLICY "Manage task assignments" ON public.task_assignments FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Manage task events" ON public.task_events;
 CREATE POLICY "Manage task events" ON public.task_events FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Manage task artifacts" ON public.task_artifacts;
 CREATE POLICY "Manage task artifacts" ON public.task_artifacts FOR ALL USING (true) WITH CHECK (true);
 
 -- Permissions

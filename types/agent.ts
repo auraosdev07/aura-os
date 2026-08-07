@@ -95,6 +95,7 @@ export const DEFAULT_PLUGGABLE_TOOLS = [
   { name: "Knowledge", description: "Access organizational RAG knowledge base & documentation", type: "builtin", category: "data" },
   { name: "Memory", description: "Read & write persistent agent memory (shared / private)", type: "builtin", category: "data" },
   { name: "Search", description: "Web search and market research discovery tool", type: "builtin", category: "search" },
+  { name: "Request Agent Info", description: "Inter-agent communication protocol (ACP v1) to request dataset clarification", type: "builtin", category: "communication" },
   { name: "MCP Client", description: "Connect to Model Context Protocol servers", type: "mcp", category: "mcp" },
   { name: "Python Exec", description: "Execute isolated Python scripts and analysis", type: "execution", category: "execution" },
 ] as const;
@@ -107,7 +108,7 @@ export const DEFAULT_AGENTS_SEED = [
     model: "gpt-4o",
     memory_scope: "shared" as AgentMemoryScope,
     connected_integrations: ["Aura & Soul"],
-    enabled_tools: ["Database", "Products", "Knowledge", "Memory", "Search"],
+    enabled_tools: ["Database", "Products", "Knowledge", "Memory", "Search", "Request Agent Info"],
     current_task: "Monitoring overall business operations and key metrics.",
   },
   {
@@ -117,7 +118,7 @@ export const DEFAULT_AGENTS_SEED = [
     model: "claude-3-5-sonnet",
     memory_scope: "shared" as AgentMemoryScope,
     connected_integrations: ["Aura & Soul", "Google"],
-    enabled_tools: ["Products", "Knowledge", "Search"],
+    enabled_tools: ["Products", "Knowledge", "Search", "Request Agent Info"],
     current_task: "Auditing product SEO titles and OpenGraph tags.",
   },
   {
@@ -127,7 +128,7 @@ export const DEFAULT_AGENTS_SEED = [
     model: "gpt-4o",
     memory_scope: "shared" as AgentMemoryScope,
     connected_integrations: ["Meta", "Google"],
-    enabled_tools: ["Products", "Knowledge", "Search"],
+    enabled_tools: ["Products", "Knowledge", "Search", "Request Agent Info"],
     current_task: "Evaluating promotional coupon strategies.",
   },
   {
@@ -137,7 +138,7 @@ export const DEFAULT_AGENTS_SEED = [
     model: "claude-3-5-sonnet",
     memory_scope: "private" as AgentMemoryScope,
     connected_integrations: ["Aura & Soul"],
-    enabled_tools: ["Products", "Knowledge"],
+    enabled_tools: ["Products", "Knowledge", "Request Agent Info"],
     current_task: "Crafting description templates for crystal products.",
   },
   {
@@ -147,7 +148,7 @@ export const DEFAULT_AGENTS_SEED = [
     model: "gpt-4o-mini",
     memory_scope: "shared" as AgentMemoryScope,
     connected_integrations: ["Aura & Soul"],
-    enabled_tools: ["Database", "Products", "Memory"],
+    enabled_tools: ["Database", "Products", "Memory", "Request Agent Info"],
     current_task: "Checking variant inventory levels and low-stock warnings.",
   },
   {
@@ -157,7 +158,7 @@ export const DEFAULT_AGENTS_SEED = [
     model: "gpt-4o-mini",
     memory_scope: "private" as AgentMemoryScope,
     connected_integrations: ["Aura & Soul", "WhatsApp", "Gmail"],
-    enabled_tools: ["Products", "Knowledge"],
+    enabled_tools: ["Products", "Knowledge", "Request Agent Info"],
     current_task: "Reviewing pending customer consultation inquiries.",
   },
   {
@@ -167,7 +168,7 @@ export const DEFAULT_AGENTS_SEED = [
     model: "gemini-1.5-pro",
     memory_scope: "shared" as AgentMemoryScope,
     connected_integrations: ["Aura & Soul", "Razorpay"],
-    enabled_tools: ["Database", "Products", "Knowledge", "Memory"],
+    enabled_tools: ["Database", "Products", "Knowledge", "Memory", "Request Agent Info"],
     current_task: "Compiling 7-day sales and order velocity analytics.",
   },
 ];

@@ -25,6 +25,7 @@ export async function createMemory(
   scope: AgentMemoryScope = "private"
 ): Promise<AgentMemoryRow> {
   const { supabase, user } = await getServerContext();
+  const ownerId = (user?.id && user.id !== "00000000-0000-0000-0000-000000000000" && !user.id.startsWith("dev-")) ? user.id : null;
 
   const formattedValue =
     typeof value === "string" ? { text: value } : value;
@@ -32,7 +33,7 @@ export async function createMemory(
   const { data, error } = await supabase
     .from("agent_memory")
     .insert({
-      owner_id: user.id,
+      owner_id: ownerId,
       agent_id: scope === "shared" ? null : agentId,
       scope,
       key,

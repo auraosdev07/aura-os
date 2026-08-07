@@ -76,6 +76,26 @@ export async function runManagerRuntimeTick(): Promise<ManagerTickSummary> {
       return { processedTasks: 0, matchedCount: 0, remainingQueuedCount: 0, matches: [] };
     }
 
+    // 0. Check WAITING tasks whose child subtasks have all completed
+    try {
+      const { runMaceOrchestratorTick } = await import("./mace/mace-orchestrator");
+      await runMaceOrchestratorTick();
+
+      const { data: waitingTasks } = await supabase
+        .from("tasks")
+        .select("id")
+        .eq("status", "WAITING");
+
+      if (waitingTasks && waitingTasks.length > 0) {
+        const { checkAndResumeParentTask } = await import("./task-delegation");
+        for (const wt of waitingTasks) {
+          await checkAndResumeParentTask(wt.id);
+        }
+      }
+    } catch (maceErr) {
+      console.error("[MACE ORCHESTRATOR TICK ERROR]:", maceErr);
+    }
+
     // 1. Fetch unassigned tasks (CREATED or QUEUED), prioritized by CRITICAL -> HIGH -> NORMAL -> LOW
     const { data: rawTasks, error: taskError } = await supabase
       .from("tasks")

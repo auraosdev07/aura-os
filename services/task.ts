@@ -21,6 +21,7 @@ import type {
   UpdateTaskPayload,
   TaskFilters,
   TaskStatus,
+  MergedOutputRow,
 } from "@/types/task";
 
 /**
@@ -137,13 +138,14 @@ export async function getTaskById(taskId: string): Promise<FullTaskDetails | nul
  */
 export async function createTask(payload: CreateTaskPayload): Promise<TaskRow> {
   const { supabase, user } = await getServerContext();
+  const ownerId = (user?.id && user.id !== "00000000-0000-0000-0000-000000000000" && !user.id.startsWith("dev-")) ? user.id : null;
 
   const initialStatus: TaskStatus = payload.assigned_agent_id ? "ASSIGNED" : "CREATED";
 
   const { data, error } = await supabase
     .from("tasks")
     .insert({
-      owner_id: user.id,
+      owner_id: ownerId,
       title: payload.title,
       description: payload.description ?? null,
       status: initialStatus,
@@ -178,15 +180,35 @@ export async function createTask(payload: CreateTaskPayload): Promise<TaskRow> {
         agent_id: createdTask.assigned_agent_id,
         role: "PRIMARY",
       });
-    } else {
-      // Trigger Manager Runtime tick for automatic role matching
-      await runManagerRuntimeTick();
     }
   } catch {
     // Ignore if sub-tables missing
   }
 
-  // Refetch latest task state in case manager runtime assigned it
+  // Auto-decompose Parent Task into MACE v1 Child Subtasks
+  const isChildSubtask = Boolean(payload.metadata?.parentTaskId || payload.metadata?.dependsOnTaskId);
+  const skipDecompose = Boolean(payload.metadata?.skipAutoDecompose);
+
+  if (!isChildSubtask && !skipDecompose) {
+    console.log(`[MACE] Parent Task Created: ${createdTask.id} ('${createdTask.title}'). Triggering Planner...`);
+    try {
+      const { decomposeParentTaskMace } = await import("./mace/mace-planner");
+      await decomposeParentTaskMace(createdTask);
+    } catch (maceErr) {
+      console.error(`[MACE] Parent Task ${createdTask.id} Decomposition Failed:`, maceErr);
+    }
+  } else if (isChildSubtask) {
+    console.log(`[MACE] Child Subtask Created: ${createdTask.id} (Parent: ${payload.metadata?.parentTaskId || 'N/A'})`);
+  } else if (!createdTask.assigned_agent_id) {
+    // Trigger Manager Runtime tick for automatic role matching
+    try {
+      await runManagerRuntimeTick();
+    } catch {
+      // Ignore
+    }
+  }
+
+  // Refetch latest task state in case manager runtime or mace planner updated it
   const { data: latest } = await supabase.from("tasks").select("*").eq("id", createdTask.id).single();
 
   return (latest as TaskRow) || createdTask;
@@ -331,6 +353,8 @@ export async function completeTask(taskId: string, outputDetails?: Record<string
 
   if (error) throw new Error(`Complete Task Error: ${error.message}`);
 
+  console.log(`[MACE] completeTask Fired: Task ${taskId} marked COMPLETED.`);
+
   try {
     await supabase.from("task_events").insert({
       task_id: taskId,
@@ -341,6 +365,17 @@ export async function completeTask(taskId: string, outputDetails?: Record<string
     });
   } catch {
     // Ignore
+  }
+
+  // Trigger Parent Task Resumption & Multi-Agent Dependency Unlock Check
+  try {
+    const { checkAndResumeParentTask } = await import("./task-delegation");
+    await checkAndResumeParentTask(taskId);
+
+    const { checkAndUnlockNextSubtasks } = await import("./multi-agent/dependency-manager");
+    await checkAndUnlockNextSubtasks(taskId);
+  } catch (depErr) {
+    console.error("[TASK DELEGATION & SUBTASK UNLOCK CHECK ERROR]:", depErr);
   }
 
   return data as TaskRow;
@@ -500,5 +535,24 @@ export async function getTasksForAgent(agentId: string): Promise<{
   } catch (err) {
     console.error("[GET TASKS FOR AGENT ERROR]:", err);
     return { active: [], completed: [], failed: [], events: [] };
+  }
+}
+
+export async function getMergedOutputForTask(parentTaskId: string): Promise<MergedOutputRow | null> {
+  try {
+    const { supabase } = await getServerContext();
+    const { data, error } = await supabase
+      .from("merged_outputs")
+      .select("*")
+      .eq("parent_task_id", parentTaskId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return data as MergedOutputRow;
+  } catch (err) {
+    console.error("[GET MERGED OUTPUT ERROR]:", err);
+    return null;
   }
 }

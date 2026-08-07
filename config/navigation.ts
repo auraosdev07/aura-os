@@ -1,8 +1,8 @@
 /**
  * config/navigation.ts
  *
- * Single source of truth for all sidebar navigation.
- * Import this config wherever nav items need to be rendered.
+ * Single source of truth for all sidebar navigation in Aura OS.
+ * Unified Enterprise Operating System Navigation Structure.
  */
 
 import {
@@ -13,12 +13,19 @@ import {
   BookOpen,
   FolderOpen,
   Database,
+  Wrench,
   Settings,
   User,
   Users,
   Sparkles,
   Package,
   Plug,
+  Cpu,
+  Search,
+  ShieldCheck,
+  ShieldAlert,
+  Globe,
+  Gem,
   type LucideIcon,
 } from "lucide-react";
 
@@ -28,14 +35,7 @@ export interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
-  /**
-   * When true, the item is only active on an exact pathname match.
-   * When false (default), it matches any pathname that starts with `href`.
-   */
   exactMatch?: boolean;
-  /**
-   * When true, the item is rendered as a disabled placeholder.
-   */
   disabled?: boolean;
 }
 
@@ -48,7 +48,7 @@ export interface NavSection {
 
 export const NAVIGATION: NavSection[] = [
   {
-    label: "Main",
+    label: "Main OS",
     items: [
       {
         href: "/dashboard",
@@ -56,9 +56,30 @@ export const NAVIGATION: NavSection[] = [
         icon: LayoutDashboard,
         exactMatch: true,
       },
+      { href: "/runtime",  label: "Runtime Control", icon: Cpu },
       { href: "/ai", label: "AI Workspace", icon: Sparkles },
-      { href: "/integrations", label: "Integrations", icon: Plug },
       { href: "/products", label: "Products", icon: Package },
+      { href: "/integrations", label: "Integrations", icon: Plug },
+    ],
+  },
+  {
+    label: "SEO & Content Engine",
+    items: [
+      { href: "/seo-workspace", label: "SEO Workspace", icon: Search },
+      { href: "/product-seo",   label: "Product SEO",  icon: Gem },
+      { href: "/editor",        label: "Editorial Queue", icon: ShieldCheck },
+      { href: "/quality-assurance", label: "Quality Assurance", icon: ShieldAlert },
+    ],
+  },
+  {
+    label: "Website & Sync",
+    items: [
+      { href: "/website-sync",  label: "Website Sync",  icon: Globe },
+    ],
+  },
+  {
+    label: "Agents & Missions",
+    items: [
       { href: "/managers", label: "Managers", icon: Users },
       { href: "/employees", label: "Employees", icon: Users },
       { href: "/missions", label: "Missions", icon: Crosshair },
@@ -72,6 +93,7 @@ export const NAVIGATION: NavSection[] = [
       { href: "/knowledge", label: "Knowledge", icon: BookOpen },
       { href: "/artifacts", label: "Artifacts", icon: FolderOpen },
       { href: "/memory",    label: "Memory",    icon: Database },
+      { href: "/tools",     label: "Tools",     icon: Wrench },
     ],
   },
   {

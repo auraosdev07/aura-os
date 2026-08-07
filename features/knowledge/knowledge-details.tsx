@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { KnowledgeView } from "@/services/knowledge";
 import { getKnowledgeById } from "@/services/knowledge";
@@ -16,27 +16,31 @@ export function KnowledgeDetails({ id }: KnowledgeDetailsProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const data = await getKnowledgeById(id);
-      if (!data) {
-        setError("Knowledge entry not found or you do not have permission to view it.");
-      } else {
-        setEntry(data);
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to load knowledge entry");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [id]);
-
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadData();
-  }, [loadData]);
+    let active = true;
+    getKnowledgeById(id)
+      .then((data) => {
+        if (active) {
+          if (!data) {
+            setError("Knowledge entry not found or you do not have permission to view it.");
+          } else {
+            setEntry(data);
+          }
+        }
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          setError(err instanceof Error ? err.message : "Failed to load knowledge entry");
+        }
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [id]);
 
   if (isLoading) {
     return (
